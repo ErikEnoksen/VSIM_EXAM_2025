@@ -122,6 +122,7 @@ void Renderer::initVulkan() {
         }
     }
 
+    spawnModel("../../Assets/Models/Ball2.obj","../../Assets/Textures/blue.jpg", glm::vec3(0, 60, 0));
     //createTerrainEntity(&m_gameWorld);
 
     qDebug() << "How many entities in the scene?:" << entityManager->getEntityCount();
@@ -1862,6 +1863,15 @@ void Renderer::updateUniformBuffer(uint32_t currentImage) {
     // Get renderable entities
     std::vector<bbl::EntityID> renderableEntities = entityManager->getEntitiesWith<bbl::Transform, bbl::Render>();
 
+    //FROM GAME ENGINE CODE BASE
+    glm::vec3 lightPosition = glm::vec3{0, 60, 0};
+    if (!renderableEntities.empty()) {
+        bbl::Transform* firstTransform = entityManager->getComponent<bbl::Transform>(renderableEntities[0]);
+        if (firstTransform) {
+            lightPosition = firstTransform->position;
+        }
+    }
+
     // Calculate alignment
     VkPhysicalDeviceProperties properties;
     vkGetPhysicalDeviceProperties(physicalDevice, &properties);
@@ -1886,7 +1896,7 @@ void Renderer::updateUniformBuffer(uint32_t currentImage) {
         // Always fill uniform buffer data regardless of visibility
         UniformBufferObject* ubo = reinterpret_cast<UniformBufferObject*>(mappedData + (entityIndex * alignedUniformSize));
         ubo->model = transform->getModelMatrix();
-        ubo->lightPos = glm::vec3{1, 1, 10};
+        ubo->lightPos = lightPosition;
         ubo->view = cam->getViewMatrix();
         ubo->proj = glm::perspective(glm::radians(cam->getFov()),swapChainExtent.width / static_cast<float>(swapChainExtent.height),0.1f,1000.0f);
         ubo->proj[1][1] *= -1.0f;
