@@ -123,7 +123,7 @@ void Renderer::initVulkan() {
     }
 
     spawnModel("../../Assets/Models/Ball2.obj","../../Assets/Textures/blue.jpg", glm::vec3(0, 60, 0));
-    createTerrainEntity(&m_gameWorld);
+    //createTerrainEntity(&m_gameWorld);
 
     qDebug() << "How many entities in the scene?:" << entityManager->getEntityCount();
 
@@ -278,19 +278,19 @@ void Renderer::createTerrainEntity(bbl::GameWorld* gameWorld) {
         return;
     }
 
-    // Create MeshData from terrain
     bbl::MeshData terrainMeshData;
     terrainMeshData.vertices = vertices;
     terrainMeshData.indices = indices;
     terrainMeshData.materialIndex = -1;
 
-    // Create entity using new ECS system
     bbl::EntityID entity = entityManager->createEntityFromMesh(terrainMeshData, glm::vec3(0.0f));
 
     if (auto* meshComp = entityManager->getComponent<bbl::Mesh>(entity)) {
-        meshComp->modelPath = "../../Assets/Textures/heightmap.jpg";
-        meshComp->meshIndex = 0;  // Could store heightmap parameters here later
+        meshComp->modelPath = "../../Lasdata/lasdata.txt";  // Denne endrer hvilken type Terrain model du bruker (HardCoded)
+        meshComp->meshIndex = 0;
+        meshComp->terrainType = "pointcloud";  // This tells that its "pointcloud" visst jeg endre tilbake må den være heightmap
     }
+
     // Add terrain texture
     size_t textureResourceID = GPUresources->uploadTexture("../../Assets/Textures/kalk.png");
     if (textureResourceID != 0) {
@@ -299,6 +299,7 @@ void Renderer::createTerrainEntity(bbl::GameWorld* gameWorld) {
         texComp.texturePath = "../../Assets/Textures/kalk.png";
         entityManager->addComponent(entity, texComp);
     }
+
     if (sceneManager) {
         sceneManager->setEntityName(entity, "Terrain");
         sceneManager->markSceneDirty();
@@ -312,6 +313,7 @@ void Renderer::createTerrainEntity(bbl::GameWorld* gameWorld) {
 
     qDebug() << "Terrain entity created with" << vertices.size() << "vertices!";
 }
+
 void Renderer::spawnTerrain()
 {
     createTerrainEntity(&m_gameWorld);

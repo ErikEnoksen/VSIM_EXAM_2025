@@ -49,6 +49,7 @@ struct Mesh
     size_t meshResourceID{0};
     std::string modelPath = "";
     size_t meshIndex = 0;
+    std::string terrainType = "";
 };
 
 struct Texture

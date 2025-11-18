@@ -119,13 +119,16 @@ void Terrain::generateMesh(unsigned char* textureData)
 
 void Terrain::calculateNormals()
 {
+    // Oppgave 1.3.2: "Compute normals in each vertex to obtain a smooth-looking surface"
+    // Kapittel 6.2.1: "Normalvektoren til en flate"
 
+    // Nullstill normaler (bruker color-feltet for å lagre normaler)
     for (auto& vertex : m_vertices)
     {
-        vertex.color = glm::vec3(0.0f, 1.0f, 0.0f);
+        vertex.color = glm::vec3(0.0f);
     }
 
-    // Calculate normals for each triangle
+    // Kapittel 6.2.1: "Regn ut vektoren n = u × v ved å bruke determinanter" (Formel 6.1)
     for (size_t i = 0; i < m_indices.size(); i += 3)
     {
         uint32_t idx0 = m_indices[i];
@@ -136,16 +139,22 @@ void Terrain::calculateNormals()
         glm::vec3 v1 = m_vertices[idx1].pos;
         glm::vec3 v2 = m_vertices[idx2].pos;
 
+        // Kapittel 6.2.1: "Regn ut vektorene u = P₁ - P₀ og v = P₂ - P₀"
         glm::vec3 edge1 = v1 - v0;
         glm::vec3 edge2 = v2 - v0;
+
+        // Kapittel 6.2.1: "Regn ut vektoren n = u × v"
+        // Formel 6.1: Kryssproduktet beregnes med determinanter
         glm::vec3 normal = glm::cross(edge1, edge2);
 
+        // Akkumuler normalvektorer for hver vertex (for smooth shading)
         m_vertices[idx0].color += normal;
         m_vertices[idx1].color += normal;
         m_vertices[idx2].color += normal;
     }
 
-    // Normalize all normals
+    // Kapittel 6.2.1: "Normaliser normalvektoren slik at den får lengde 1"
+    // Formel: n/||n|| gir enhetsnormalvektor
     for (auto& vertex : m_vertices)
     {
         if (glm::length(vertex.color) > 0.0f)
@@ -265,6 +274,7 @@ bool Terrain::loadFromPointCloud(const std::string& filepath, float heightScale,
         return false;
     }
 
+    // Oppgave 1.1: "The total number of points should be on the first line in the file"
     int totalPoints;
     file >> totalPoints;
 
@@ -276,6 +286,7 @@ bool Terrain::loadFromPointCloud(const std::string& filepath, float heightScale,
 
     std::cout << "Loading " << totalPoints << " points from point cloud..." << std::endl;
 
+    // Oppgave 1.1: "Convert point cloud format to your own data format with xyz coordinates"
     struct Point3D {
         float x, y, z;
     };
@@ -291,7 +302,8 @@ bool Terrain::loadFromPointCloud(const std::string& filepath, float heightScale,
 
     std::cout << "Read " << points.size() << " points" << std::endl;
 
-    // Find bounds
+    // Oppgave 1.2: Finn grenser for datasettet
+    // Kapittel 6.1: "Flatene er definert over et område Ω ⊂ R²"
     float minX = points[0].x, maxX = points[0].x;
     float minY = points[0].y, maxY = points[0].y;
     float minZ = points[0].z, maxZ = points[0].z;
@@ -310,6 +322,8 @@ bool Terrain::loadFromPointCloud(const std::string& filepath, float heightScale,
               << "Y: [" << minY << ", " << maxY << "], "
               << "Z: [" << minZ << ", " << maxZ << "]" << std::endl;
 
+    // Oppgave 1.3.1: "Make a regular triangulation for the data set"
+    // Kapittel 6.2.2: "Regulært grid (rektangulært mesh)"
     int gridWidth = static_cast<int>((maxX - minX) / gridSpacing) + 1;
     int gridHeight = static_cast<int>((maxZ - minZ) / gridSpacing) + 1;
 
@@ -318,6 +332,10 @@ bool Terrain::loadFromPointCloud(const std::string& filepath, float heightScale,
 
     std::cout << "Creating regular grid: " << m_width << "x" << m_height << std::endl;
 
+    // Oppgave 1.3.1: "use the height values to make a piecewise linear surface"
+    // Kapittel 6.1: "Stykkevis bilineær interpolant"
+    // Kapittel 6.1: "Splinerommet S¹₀(Δ) hvor tallet 1 indikerer at det er snakk om
+    // lineære (bilineære) funksjoner"
     std::vector<float> heightMap(m_width * m_height, minY);
 
     std::cout << "Finding heights for grid cells..." << std::endl;
@@ -325,8 +343,10 @@ bool Terrain::loadFromPointCloud(const std::string& filepath, float heightScale,
     int progressStep = m_height / 10;
     if (progressStep == 0) progressStep = 1;
 
-    //Use Avereage of nearby naboInformasjon instead of just nearest
-    float searchRadius = gridSpacing * 2.0f;
+    // Kapittel 6.2.2: "En generell metode for å generere en 3d flate er å evaluere
+    // en funksjon f(x,y) i en dobbel for-løkke"
+    // Bruker inverse distance weighting for å interpolere høydeverdier
+    float searchRadius = gridSpacing * 3.0f;
 
     for (int d = 0; d < m_height; ++d)
     {
@@ -335,11 +355,11 @@ bool Terrain::loadFromPointCloud(const std::string& filepath, float heightScale,
             float gridX = minX + w * gridSpacing;
             float gridZ = minZ + d * gridSpacing;
 
-            // Collect all points within search radius
             float heightSum = 0.0f;
             float weightSum = 0.0f;
             int pointsFound = 0;
 
+            // Vektet gjennomsnitt basert på avstand til punkter
             for (const auto& p : points)
             {
                 float dx = p.x - gridX;
@@ -348,7 +368,6 @@ bool Terrain::loadFromPointCloud(const std::string& filepath, float heightScale,
 
                 if (dist < searchRadius)
                 {
-
                     float weight = 1.0f / (dist + 0.1f);
                     heightSum += p.y * weight;
                     weightSum += weight;
@@ -358,12 +377,11 @@ bool Terrain::loadFromPointCloud(const std::string& filepath, float heightScale,
 
             if (pointsFound > 0 && weightSum > 0.0f)
             {
-
                 heightMap[w + d * m_width] = heightSum / weightSum;
             }
             else
             {
-
+                // Fallback: finn nærmeste punkt
                 float minDist = std::numeric_limits<float>::max();
                 float closestHeight = minY;
 
@@ -392,7 +410,7 @@ bool Terrain::loadFromPointCloud(const std::string& filepath, float heightScale,
     std::cout << "Generating mesh with regular triangulation..." << std::endl;
     generateMeshFromHeightMap(heightMap);
 
-    std::cout << "✓ Triangulation done!" << std::endl;
+    std::cout << " Triangulation done!" << std::endl;
     std::cout << "  Vertices: " << m_vertices.size() << std::endl;
     std::cout << "  Indices: " << m_indices.size() << std::endl;
     std::cout << "  Triangles: " << (m_indices.size() / 3) << std::endl;
@@ -409,33 +427,50 @@ void Terrain::generateMeshFromHeightMap(const std::vector<float>& heightMap)
     m_vertices.reserve(m_width * m_height);
     m_heightData.reserve(m_width * m_height);
 
+    // Oppgave 1.2: "Translate and scale the points"
+    // Sentrer terrenget ved å beregne offset
     float vertexXStart = 0.0f - m_width * m_gridSpacing / 2.0f;
     float vertexZStart = 0.0f + m_height * m_gridSpacing / 2.0f;
 
+    // Kapittel 6.2.2: "En generell metode for å generere en 3d flate er å evaluere
+    // en funksjon f(x,y) i en dobbel for-løkke"
     for (int d = 0; d < m_height; ++d)
     {
         for (int w = 0; w < m_width; ++w)
         {
             int index = w + d * m_width;
+            // Oppgave 1.2: Skalering og translasjon av høyde
             float height = heightMap[index] * m_heightScale + m_heightPlacement;
 
             m_heightData.push_back(height);
 
             Vertex vertex{};
 
-            vertex.pos = glm::vec3(vertexXStart + (w * m_gridSpacing),height, vertexZStart - (d * m_gridSpacing)  );
+            // Oppgave 1.2: Skalering (gridSpacing) og translasjon (offset)
+            vertex.pos = glm::vec3(
+                vertexXStart + (w * m_gridSpacing),
+                height,
+                vertexZStart - (d * m_gridSpacing)
+                );
 
+            // Midlertidig verdi - vil bli overskrevet av calculateNormals()
             vertex.color = glm::vec3(0.5f, 0.5f, 0.5f);
 
-            vertex.texCoord = glm::vec2(w / static_cast<float>(m_width - 1),d / static_cast<float>(m_height - 1) );
+            vertex.texCoord = glm::vec2(
+                w / static_cast<float>(m_width - 1),
+                d / static_cast<float>(m_height - 1)
+                );
 
             m_vertices.push_back(vertex);
         }
     }
 
-    // Triangulation: connecting grid with triangles
+    // Oppgave 1.3.1: "Make a regular triangulation"
+    // Kapittel 6.2.2: "Siden vi skal tegne trekanter, må hvert rektangel (quad) deles i to"
     m_indices.reserve((m_width - 1) * (m_height - 1) * 6);
 
+    // Kapittel 6.2: "Trekantene... indekseres... ved verteksindeksene (i,j,k)
+    // i positiv omløpsretning"
     for (int d = 0; d < m_height - 1; ++d)
     {
         for (int w = 0; w < m_width - 1; ++w)
@@ -445,7 +480,7 @@ void Terrain::generateMeshFromHeightMap(const std::vector<float>& heightMap)
             uint32_t bottomLeft = topLeft + m_width;
             uint32_t bottomRight = bottomLeft + 1;
 
-            // Two triangles per quad
+            // Hver quad deles i to trekanter
             m_indices.push_back(topLeft);
             m_indices.push_back(bottomRight);
             m_indices.push_back(bottomLeft);
@@ -456,9 +491,9 @@ void Terrain::generateMeshFromHeightMap(const std::vector<float>& heightMap)
         }
     }
 
+    // Oppgave 1.3.2: "Compute normals in each vertex to obtain a smooth-looking surface"
     calculateNormals();
 }
-
 
 
 

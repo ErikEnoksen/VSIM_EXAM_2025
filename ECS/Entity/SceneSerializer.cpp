@@ -134,16 +134,48 @@ bool SceneSerializer::loadScene(EntityManager* entityManager,
 
             if (gpuResources && entityJson.contains("Mesh")) {
                 std::string meshPath = entityJson["Mesh"].value("modelPath", "");
+                std::string terrainType = entityJson["Mesh"].value("terrainType", "");
                 size_t meshIndex = entityJson["Mesh"].value("meshIndex", 0);
 
                 if (!meshPath.empty()) {
                     qDebug() << "Reloading mesh from:" << QString::fromStdString(meshPath);
 
-                    if (meshPath.find("heightmap") != std::string::npos) {
+                    // SJEKK TERRENGTYPE
+                    if (terrainType == "pointcloud") {
+                        // ===== PUNKTSKY-TERRENG =====
+                        qDebug() << "Detected point cloud terrain - regenerating from point cloud";
 
-                        qDebug() << "Detected terrain heightmap - regenerating terrain mesh";
+                        Terrain tempTerrain;
+                        // Bruk samme parametere som du brukte originalt
+                        // Du må kanskje lagre disse i Mesh-komponenten også
+                        if (tempTerrain.loadFromPointCloud(meshPath, 1.0f, 2.0f, 0.0f)) {
 
-                        // Regenerate terrain from heightmap so that we can load in terrain with the right heightmap
+                            bbl::MeshData terrainMeshData;
+                            terrainMeshData.vertices = tempTerrain.getVertices();
+                            terrainMeshData.indices = tempTerrain.getIndices();
+                            terrainMeshData.materialIndex = -1;
+
+                            size_t newMeshID = gpuResources->uploadMesh(terrainMeshData);
+
+                            // Update mesh component
+                            if (auto* mesh = entityManager->getComponent<Mesh>(entityID)) {
+                                mesh->meshResourceID = newMeshID;
+                                mesh->terrainType = "pointcloud";
+                            }
+                            // Update render component
+                            if (auto* render = entityManager->getComponent<Render>(entityID)) {
+                                render->meshResourceID = newMeshID;
+                            }
+
+                            qDebug() << "Point cloud terrain regenerated successfully!";
+                        } else {
+                            qWarning() << "Failed to regenerate terrain from point cloud";
+                        }
+
+                    } else if (terrainType == "heightmap" || meshPath.find("heightmap") != std::string::npos) {
+                        // ===== HEIGHTMAP-TERRENG =====
+                        qDebug() << "Detected heightmap terrain - regenerating from heightmap";
+
                         Terrain tempTerrain;
                         if (tempTerrain.loadFromHeightmap(meshPath, 0.15f, 1.f, 0.0f)) {
 
@@ -157,19 +189,20 @@ bool SceneSerializer::loadScene(EntityManager* entityManager,
                             // Update mesh component
                             if (auto* mesh = entityManager->getComponent<Mesh>(entityID)) {
                                 mesh->meshResourceID = newMeshID;
+                                mesh->terrainType = "heightmap";
                             }
                             // Update render component
                             if (auto* render = entityManager->getComponent<Render>(entityID)) {
                                 render->meshResourceID = newMeshID;
                             }
 
-                            qDebug() << "Terrain mesh regenerated successfully!";
+                            qDebug() << "Heightmap terrain regenerated successfully!";
                         } else {
                             qWarning() << "Failed to regenerate terrain from heightmap";
                         }
 
                     } else {
-
+                        // ===== VANLIG 3D-MODELL =====
                         bbl::ModelLoader loader;
                         auto model = loader.loadModel(meshPath, "");
 
@@ -192,6 +225,8 @@ bool SceneSerializer::loadScene(EntityManager* entityManager,
                     }
                 }
             }
+
+            // ... resten av koden (texture, audio, etc.) forblir uendret
             if (gpuResources && entityJson.contains("Texture")) {
                 std::string texPath = entityJson["Texture"].value("texturePath", "");
                 if (!texPath.empty()) {
@@ -208,9 +243,9 @@ bool SceneSerializer::loadScene(EntityManager* entityManager,
                     }
                 }
             }
+
             if (entityJson.contains("Audio")) {
                 if (auto* audio = entityManager->getComponent<Audio>(entityID)) {
-
                     if (!audio->attackSound.empty() && audio->attackSound != "../../Assets/Sounds/") {
                         qDebug() << "Audio component has attack sound:" << QString::fromStdString(audio->attackSound);
                     }
@@ -355,7 +390,8 @@ json SceneSerializer::serializeMesh(const Mesh& mesh)
     return {
         {"meshResourceID", mesh.meshResourceID},
         {"modelPath", mesh.modelPath},
-        {"meshIndex", mesh.meshIndex}
+        {"meshIndex", mesh.meshIndex},
+        {"terrainType", mesh.terrainType}
     };
 }
 
@@ -430,6 +466,7 @@ Mesh SceneSerializer::deserializeMesh(const json& j)
     mesh.meshResourceID = j["meshResourceID"].get<size_t>();
     mesh.modelPath = j.value("modelPath", "");
     mesh.meshIndex = j.value("meshIndex", 0);
+    mesh.terrainType = j.value("terrainType", "");
     return mesh;
 }
 Texture SceneSerializer::deserializeTexture(const json& j)
