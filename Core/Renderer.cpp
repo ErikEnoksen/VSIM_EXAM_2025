@@ -123,7 +123,7 @@ void Renderer::initVulkan() {
     }
 
     spawnModel("../../Assets/Models/Ball2.obj","../../Assets/Textures/blue.jpg", glm::vec3(0, 60, 0));
-    //createTerrainEntity(&m_gameWorld);
+    createTerrainEntity(&m_gameWorld);
 
     qDebug() << "How many entities in the scene?:" << entityManager->getEntityCount();
 
@@ -292,11 +292,11 @@ void Renderer::createTerrainEntity(bbl::GameWorld* gameWorld) {
         meshComp->meshIndex = 0;  // Could store heightmap parameters here later
     }
     // Add terrain texture
-    size_t textureResourceID = GPUresources->uploadTexture("../../Assets/Textures/volcan.png");
+    size_t textureResourceID = GPUresources->uploadTexture("../../Assets/Textures/kalk.png");
     if (textureResourceID != 0) {
         bbl::Texture texComp;
         texComp.textureResourceID = textureResourceID;
-        texComp.texturePath = "../../Assets/Textures/volcan.png";
+        texComp.texturePath = "../../Assets/Textures/kalk.png";
         entityManager->addComponent(entity, texComp);
     }
     if (sceneManager) {

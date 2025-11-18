@@ -75,7 +75,7 @@ if CENTER:
     print(f"  Y: {all_y.min():.2f} to {all_y.max():.2f}")
     print(f"  Z: {all_z.min():.2f} to {all_z.max():.2f}")
 
-# SCALE if needed
+# SCALE if needed, I had to do this on my first attempt at visualising the pointcloud in Vulcan Space
 if SCALE != 1.0:
     all_x = all_x * SCALE
     all_y = all_y * SCALE

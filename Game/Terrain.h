@@ -12,12 +12,13 @@ public:
     Terrain();
     ~Terrain();
 
-    bool loadFromHeightmap(const std::string& filepath,
-                           float heightScale = 0.02f,
-                           float gridSpacing = 0.2f,
-                           float heightPlacement = -5.0f);
+    bool loadFromHeightmap(const std::string& filepath,float heightScale = 0.02f,float gridSpacing = 0.2f,float heightPlacement = -5.0f);
+
+    bool loadFromPointCloud(const std::string& filepath, float heightScale = 1.0f,
+                            float gridSpacing = 2.0f, float heightPlacement = 0.0f);
 
     float getHeightAt(float worldX, float worldZ, const glm::vec3& terrainPosition = glm::vec3(0.0f)) const;
+
 
 
     // Get mesh data
@@ -30,6 +31,7 @@ public:
     glm::vec3 getCenter() const;
 
 private:
+    void generateMeshFromHeightMap(const std::vector<float>& heightMap);
     void generateMesh(unsigned char* textureData);
     void calculateNormals();
     float barycentric(const glm::vec2& p, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c) const;

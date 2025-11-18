@@ -9,10 +9,20 @@ bbl::GameWorld::GameWorld()
 
 void bbl::GameWorld::Setup()
 {
-    if (m_terrain->loadFromHeightmap("../../Assets/Textures/heightmap.jpg", 0.15f, 1.f, 0.0f))
+    // if (m_terrain->loadFromHeightmap("../../Assets/Textures/heightmap.jpg", 0.15f, 1.f, 0.0f))
+    // {
+    //     m_terrainLoaded = true;
+    //     qDebug() << "Terrain loaded successfully!";
+    // }
+    // else
+    // {
+    //     qWarning() << "Failed to load terrain!";
+    // }
+                                                    //HeightScale, GridSpacing, HeightPlacement
+    if (m_terrain->loadFromPointCloud("../../Lasdata/lasdata.txt", 1.f, 2.f, 0.0f))
     {
         m_terrainLoaded = true;
-        qDebug() << "Terrain loaded successfully!";
+        qDebug() << "Terrain loaded successfully from point cloud!";
     }
     else
     {

@@ -2,6 +2,9 @@
 #include "../External/stb_image.h"
 #include <iostream>
 #include <cmath>
+#include <fstream>
+#include <unordered_map>
+#include <limits>
 #include <QDebug>
 
 Terrain::Terrain() : m_width (0), m_height(0), m_channels(0), m_heightScale(0.02f), m_gridSpacing(0.2f), m_heightPlacement(-5.0f)
@@ -241,8 +244,245 @@ float Terrain::getHeightAt(float worldX, float worldZ, const glm::vec3& terrainP
 
     return height;
 }
+
+
+
 glm::vec3 Terrain::getCenter() const
 {
     return glm::vec3(0.0f, 0.0f, 0.0f);  // Terrain is centered at origin
 }
+
+bool Terrain::loadFromPointCloud(const std::string& filepath, float heightScale, float gridSpacing, float heightPlacement)
+{
+    m_heightScale = heightScale;
+    m_gridSpacing = gridSpacing;
+    m_heightPlacement = heightPlacement;
+
+    std::ifstream file(filepath);
+    if (!file.is_open())
+    {
+        std::cerr << "Failed to load point cloud: " << filepath << std::endl;
+        return false;
+    }
+
+    int totalPoints;
+    file >> totalPoints;
+
+    if (totalPoints <= 0)
+    {
+        std::cerr << "Invalid point count in file: " << totalPoints << std::endl;
+        return false;
+    }
+
+    std::cout << "Loading " << totalPoints << " points from point cloud..." << std::endl;
+
+    struct Point3D {
+        float x, y, z;
+    };
+    std::vector<Point3D> points;
+    points.reserve(totalPoints);
+
+    float x, y, z;
+    while (file >> x >> y >> z)
+    {
+        points.push_back({x, y, z});
+    }
+    file.close();
+
+    std::cout << "Read " << points.size() << " points" << std::endl;
+
+    // Find bounds
+    float minX = points[0].x, maxX = points[0].x;
+    float minY = points[0].y, maxY = points[0].y;
+    float minZ = points[0].z, maxZ = points[0].z;
+
+    for (const auto& p : points)
+    {
+        minX = std::min(minX, p.x);
+        maxX = std::max(maxX, p.x);
+        minY = std::min(minY, p.y);
+        maxY = std::max(maxY, p.y);
+        minZ = std::min(minZ, p.z);
+        maxZ = std::max(maxZ, p.z);
+    }
+
+    std::cout << "Bounds - X: [" << minX << ", " << maxX << "], "
+              << "Y: [" << minY << ", " << maxY << "], "
+              << "Z: [" << minZ << ", " << maxZ << "]" << std::endl;
+
+    int gridWidth = static_cast<int>((maxX - minX) / gridSpacing) + 1;
+    int gridHeight = static_cast<int>((maxZ - minZ) / gridSpacing) + 1;
+
+    m_width = gridWidth;
+    m_height = gridHeight;
+
+    std::cout << "Creating regular grid: " << m_width << "x" << m_height << std::endl;
+
+    std::vector<float> heightMap(m_width * m_height, minY);
+
+    std::cout << "Finding heights for grid cells..." << std::endl;
+
+    int progressStep = m_height / 10;
+    if (progressStep == 0) progressStep = 1;
+
+    //Use Avereage of nearby naboInformasjon instead of just nearest
+    float searchRadius = gridSpacing * 2.0f;
+
+    for (int d = 0; d < m_height; ++d)
+    {
+        for (int w = 0; w < m_width; ++w)
+        {
+            float gridX = minX + w * gridSpacing;
+            float gridZ = minZ + d * gridSpacing;
+
+            // Collect all points within search radius
+            float heightSum = 0.0f;
+            float weightSum = 0.0f;
+            int pointsFound = 0;
+
+            for (const auto& p : points)
+            {
+                float dx = p.x - gridX;
+                float dz = p.z - gridZ;
+                float dist = std::sqrt(dx * dx + dz * dz);
+
+                if (dist < searchRadius)
+                {
+
+                    float weight = 1.0f / (dist + 0.1f);
+                    heightSum += p.y * weight;
+                    weightSum += weight;
+                    pointsFound++;
+                }
+            }
+
+            if (pointsFound > 0 && weightSum > 0.0f)
+            {
+
+                heightMap[w + d * m_width] = heightSum / weightSum;
+            }
+            else
+            {
+
+                float minDist = std::numeric_limits<float>::max();
+                float closestHeight = minY;
+
+                for (const auto& p : points)
+                {
+                    float dx = p.x - gridX;
+                    float dz = p.z - gridZ;
+                    float dist = dx * dx + dz * dz;
+
+                    if (dist < minDist)
+                    {
+                        minDist = dist;
+                        closestHeight = p.y;
+                    }
+                }
+                heightMap[w + d * m_width] = closestHeight;
+            }
+        }
+
+        if (d % progressStep == 0)
+        {
+            std::cout << "  Progress: " << (d * 100 / m_height) << "%" << std::endl;
+        }
+    }
+
+    std::cout << "Generating mesh with regular triangulation..." << std::endl;
+    generateMeshFromHeightMap(heightMap);
+
+    std::cout << "✓ Triangulation done!" << std::endl;
+    std::cout << "  Vertices: " << m_vertices.size() << std::endl;
+    std::cout << "  Indices: " << m_indices.size() << std::endl;
+    std::cout << "  Triangles: " << (m_indices.size() / 3) << std::endl;
+
+    return true;
+}
+
+void Terrain::generateMeshFromHeightMap(const std::vector<float>& heightMap)
+{
+    m_vertices.clear();
+    m_indices.clear();
+    m_heightData.clear();
+
+    m_vertices.reserve(m_width * m_height);
+    m_heightData.reserve(m_width * m_height);
+
+    float vertexXStart = 0.0f - m_width * m_gridSpacing / 2.0f;
+    float vertexZStart = 0.0f + m_height * m_gridSpacing / 2.0f;
+
+    for (int d = 0; d < m_height; ++d)
+    {
+        for (int w = 0; w < m_width; ++w)
+        {
+            int index = w + d * m_width;
+            float height = heightMap[index] * m_heightScale + m_heightPlacement;
+
+            m_heightData.push_back(height);
+
+            Vertex vertex{};
+
+            vertex.pos = glm::vec3(vertexXStart + (w * m_gridSpacing),height, vertexZStart - (d * m_gridSpacing)  );
+
+            vertex.color = glm::vec3(0.5f, 0.5f, 0.5f);
+
+            vertex.texCoord = glm::vec2(w / static_cast<float>(m_width - 1),d / static_cast<float>(m_height - 1) );
+
+            m_vertices.push_back(vertex);
+        }
+    }
+
+    // Triangulation: connecting grid with triangles
+    m_indices.reserve((m_width - 1) * (m_height - 1) * 6);
+
+    for (int d = 0; d < m_height - 1; ++d)
+    {
+        for (int w = 0; w < m_width - 1; ++w)
+        {
+            uint32_t topLeft = w + d * m_width;
+            uint32_t topRight = topLeft + 1;
+            uint32_t bottomLeft = topLeft + m_width;
+            uint32_t bottomRight = bottomLeft + 1;
+
+            // Two triangles per quad
+            m_indices.push_back(topLeft);
+            m_indices.push_back(bottomRight);
+            m_indices.push_back(bottomLeft);
+
+            m_indices.push_back(topLeft);
+            m_indices.push_back(topRight);
+            m_indices.push_back(bottomRight);
+        }
+    }
+
+    calculateNormals();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
