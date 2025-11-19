@@ -82,15 +82,17 @@ void CollisionSystem::checkTerrainCollision(EntityID entity, Transform* transfor
 
         Physics* physics = m_entityManager->getComponent<Physics>(entity);
         if (physics && physics->velocity.y < 0.0f) {
-            physics->velocity.y = 0.0f;
+            // Reverser Y-hastighet med restitusjon
+            float restitution = 0.3f;
+            physics->velocity.y = -physics->velocity.y * restitution;
+
+            // La til Bouce for mer realisisk simulasjon
+            if (std::abs(physics->velocity.y) < 0.5f) {
+                physics->velocity.y = 0.0f;
+            }
         }
     }
-    // Check if close to ground
-    else if (entityBottom <= terrainHeight + m_groundCheckDistance) {
-        collision->isGrounded = true;
-    }
 }
-
 void CollisionSystem::checkEntityCollisions()
 {
     if (!m_entityManager) {

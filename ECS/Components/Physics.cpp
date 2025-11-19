@@ -66,7 +66,6 @@ void PhysicsSystem::update(float dt)
 
             // Sjekk om ballen er over bakken
             if (transform->position.y > groundY + ballRadius + 0.5f) {
-
                 // FRITT FALL - bruk full tyngdekraft
                 physics->acceleration = glm::vec3(0.0f, -9.81f, 0.0f);
             }
@@ -94,21 +93,18 @@ void PhysicsSystem::update(float dt)
 
                 if(collision && collision->isGrounded && glm::length(physics->velocity) > 0.01f)
                 {
-                    float my = 0.3f; //friksjon: Gummi mot våt asfalt er cirka 0.3
+                    float my = 0.25f;
 
-                    // Beregn cos(θ) fra normalvektor
                     glm::vec3 up(0.0f, 1.0f, 0.0f);
                     float cosTheta = glm::dot(normal, up);
 
-                    // Friksjonsakselerasjon: a = μ * g * cos(θ)
                     float g = 9.81f;
                     float frictionMagnitude = my * g * cosTheta;
 
-                    // Retning: motsatt av hastighet
+                    // Bare legg til friksjon, la threshold håndtere stopp
                     glm::vec3 velocityDir = glm::normalize(physics->velocity);
                     glm::vec3 frictionAccel = -frictionMagnitude * velocityDir;
 
-                    // Legg til friksjon i total akselerasjon
                     physics->acceleration += frictionAccel;
                 }
             }
@@ -119,16 +115,27 @@ void PhysicsSystem::update(float dt)
             {
                 physics->acceleration += m_gravity;
             }
-            else if (collision && collision->isGrounded) {
-                physics->acceleration.y = 0.0f;
-                physics->velocity.y = 0.0f;
-            }
         }
 
         /*
          * Steg 4: Oppdater hastighet (Formel 9.16)
          */
         physics->velocity += physics->acceleration * dt;
+
+        /*
+        * Steg 4.5: Stopp helt hvis friksjon har redusert velocity nok
+        */
+        if (collision && collision->isGrounded) {
+            // Sjekk om vi er på relativt flatt terreng
+            glm::vec3 up(0.0f, 1.0f, 0.0f);
+            glm::vec3 normal = m_terrain->getNormal(transform->position);
+            float cosTheta = glm::dot(glm::normalize(normal), up);
+
+            // Kun stopp hvis på flatt terreng ca 36 grader
+            if (cosTheta > 0.8f && glm::length(physics->velocity) < 0.05f) {
+                physics->velocity = glm::vec3(0.0f);
+            }
+        }
 
         /*
          * Steg 5: Oppdater posisjon (Formel 9.17)

@@ -290,7 +290,7 @@
         bbl::EntityID ballEntity = mVulkanWindow->spawnModel(
             "../../Assets/Models/Ball2.obj",
             "../../Assets/Textures/blue.jpg",
-            glm::vec3(-20.0f, 60.0f, -40.0f)
+            glm::vec3(-20.0f, 20.0f, -40.0f)
             );
 
         auto* entityManager = mVulkanWindow->getEntityManager();
@@ -303,7 +303,7 @@
          * useGravity = true aktiverer algoritme 9.6 og formel 9.14
          */
             bbl::Physics physicsComp;
-            physicsComp.useGravity = false;
+            physicsComp.useGravity = true;
             entityManager->addComponent(ballEntity, physicsComp);
 
         /*
