@@ -77,6 +77,40 @@ void PhysicsSystem::update(float dt)
                 glm::vec3 tangentAcceleration = gravity - (gravityDotNormal * normal);
 
                 physics->acceleration = tangentAcceleration;
+
+                /*
+                 * Oppgave 2.2/2.3
+                 *
+                 * Friksjonsformel:
+                 * F_friksjon = μ * N
+                 * a_friction = μ * g * cos(θ)
+                 *
+                 * Hvor:
+                 *   μ = friksjonskoeffisient
+                 *   N = normalkraft
+                 *   g = tyngdeakselerasjon (9.81 m/s²)
+                 *   cos(θ) = n⃗ · ŷ (kryss produktet mellom normal og opp-retning)
+                 */
+
+                if(collision && collision->isGrounded && glm::length(physics->velocity) > 0.01f)
+                {
+                    float my = 0.3f; //friksjon: Gummi mot våt asfalt er cirka 0.3
+
+                    // Beregn cos(θ) fra normalvektor
+                    glm::vec3 up(0.0f, 1.0f, 0.0f);
+                    float cosTheta = glm::dot(normal, up);
+
+                    // Friksjonsakselerasjon: a = μ * g * cos(θ)
+                    float g = 9.81f;
+                    float frictionMagnitude = my * g * cosTheta;
+
+                    // Retning: motsatt av hastighet
+                    glm::vec3 velocityDir = glm::normalize(physics->velocity);
+                    glm::vec3 frictionAccel = -frictionMagnitude * velocityDir;
+
+                    // Legg til friksjon i total akselerasjon
+                    physics->acceleration += frictionAccel;
+                }
             }
         }
         else {
