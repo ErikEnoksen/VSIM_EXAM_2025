@@ -122,7 +122,7 @@ void CollisionSystem::checkEntityCollisions()
 
             AABB aabbB = calculateAABB(*transformB, *collisionB);
 
-            // Check if AABBs overlap
+            // Check  AABBs overlap
             if (aabbA.intersects(aabbB)) {
                 collisionA->isColliding = true;
                 collisionB->isColliding = true;
@@ -174,8 +174,8 @@ void CollisionSystem::resolveCollision(EntityID entityA, EntityID entityB,
     }
 
     //push the entitys apart
-    transformA->position -= separation * 0.5f;
-    transformB->position += separation * 0.5f;
+    transformA->position -= separation * 2.f;
+    transformB->position += separation * 2.f;
 
     // Stop their velocities in the collision direction
     Physics* physicsA = m_entityManager->getComponent<Physics>(entityA);

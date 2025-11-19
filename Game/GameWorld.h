@@ -29,10 +29,12 @@ public:
 
     void initializeSystems(EntityManager* entityManager);
 
+
 private:
     std::unique_ptr<Terrain> m_terrain;
     std::unique_ptr<PhysicsSystem> m_physicsSystem;
     std::unique_ptr<CollisionSystem> m_collisionSystem;
+
 
     bool m_terrainLoaded{false};
 };

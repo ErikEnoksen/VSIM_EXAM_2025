@@ -303,10 +303,12 @@ void Renderer::createTerrainEntity(bbl::GameWorld* gameWorld) {
     if (sceneManager) {
         sceneManager->setEntityName(entity, "Terrain");
         sceneManager->markSceneDirty();
+
     }
 
     if (auto* renderComp = entityManager->getComponent<bbl::Render>(entity)) {
         renderComp->textureResourceID = textureResourceID;
+        renderComp->usePhong = true;
     }
 
     m_gameWorld.setTerrainEntity(entity);

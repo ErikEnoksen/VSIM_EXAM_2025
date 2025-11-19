@@ -19,7 +19,7 @@ void bbl::GameWorld::Setup()
     //     qWarning() << "Failed to load terrain!";
     // }
                                                     //HeightScale, GridSpacing, HeightPlacement
-    if (m_terrain->loadFromPointCloud("../../Lasdata/lasdata.txt", 1.f, 2.f, 0.0f))
+    if (m_terrain->loadFromPointCloud("../../Lasdata/lasdata.txt", 1.5f, 2.25f, 0.0f))
     {
         m_terrainLoaded = true;
         qDebug() << "Terrain loaded successfully from point cloud!";
@@ -39,7 +39,7 @@ void bbl::GameWorld::initializeSystems(EntityManager* entityManager)
     }
 
     // Physics System
-    m_physicsSystem = std::make_unique<PhysicsSystem>(entityManager);
+    m_physicsSystem = std::make_unique<PhysicsSystem>(entityManager, m_terrain.get());
     m_physicsSystem->setGravity(glm::vec3(0.0f, -9.81f, 0.0f));
 
     // Collision System

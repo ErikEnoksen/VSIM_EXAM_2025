@@ -48,7 +48,7 @@
                 "meshResourceID": 1,
                 "opacity": 1.0,
                 "textureResourceID": 2,
-                "usePhong": false,
+                "usePhong": true,
                 "visible": true
             },
             "Texture": {
@@ -73,15 +73,78 @@
                 ]
             },
             "entity_id": 2
+        },
+        {
+            "Collision": {
+                "colliderSize": [
+                    2.0,
+                    2.0,
+                    2.0
+                ],
+                "isColliding": true,
+                "isGrounded": true,
+                "isStatic": false,
+                "isTrigger": false
+            },
+            "Mesh": {
+                "meshIndex": 0,
+                "meshResourceID": 2,
+                "modelPath": "../../Assets/Models/Ball2.obj",
+                "terrainType": ""
+            },
+            "Physics": {
+                "acceleration": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "mass": 1.0,
+                "useGravity": false,
+                "velocity": [
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            "Render": {
+                "meshResourceID": 2,
+                "opacity": 1.0,
+                "textureResourceID": 1,
+                "usePhong": true,
+                "visible": true
+            },
+            "Texture": {
+                "texturePath": "../../Assets/Textures/blue.jpg",
+                "textureResourceID": 1
+            },
+            "Transform": {
+                "position": [
+                    78.19999694824219,
+                    50.491371154785156,
+                    0.20000000298023224
+                ],
+                "rotation": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "entity_id": 3
         }
     ],
     "entity_names": {
         "1": "Ball2",
-        "2": "Terrain"
+        "2": "Terrain",
+        "3": "Ball"
     },
     "scene_metadata": {
         "engine": "BBL Engine",
-        "entity_count": 2,
+        "entity_count": 3,
         "name": "Untitled Scene",
         "version": "1.0"
     }

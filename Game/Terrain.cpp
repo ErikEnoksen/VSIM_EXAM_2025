@@ -219,7 +219,7 @@ float Terrain::getHeightAt(float worldX, float worldZ, const glm::vec3& terrainP
     // Check bounds
     if (gridX < 0 || gridZ < 0 || gridX >= m_width - 1 || gridZ >= m_height - 1) {
 
-        return m_heightPlacement;
+        return -1000;
     }
 
     // Get fractional
@@ -493,6 +493,35 @@ void Terrain::generateMeshFromHeightMap(const std::vector<float>& heightMap)
 
     // Oppgave 1.3.2: "Compute normals in each vertex to obtain a smooth-looking surface"
     calculateNormals();
+}
+
+
+
+// OPPGAVE 2.1 Jobb. Må bare få tak i Normalen for å bruke til Fysikken
+glm::vec3 Terrain::getNormal(const glm::vec3& worldPos) const
+{
+    if (m_vertices.empty()) {
+        return glm::vec3(0.0f, 1.0f, 0.0f);
+    }
+
+    // Samme logikk som getHeightAt for å finne riktig trekant
+    float offsetX = -m_width * m_gridSpacing / 2.0f;
+    float offsetZ = +m_height * m_gridSpacing / 2.0f;
+
+    float localX = worldPos.x - offsetX;
+    float localZ = -(worldPos.z - offsetZ);
+
+    int gridX = static_cast<int>(std::floor(localX / m_gridSpacing));
+    int gridZ = static_cast<int>(std::floor(localZ / m_gridSpacing));
+
+    if (gridX < 0 || gridZ < 0 || gridX >= m_width - 1 || gridZ >= m_height - 1) {
+        return glm::vec3(0.0f, 1.0f, 0.0f);
+    }
+
+    int topLeftIndex = gridX + gridZ * m_width;
+
+    // Normalen er allerede beregnet
+    return m_vertices[topLeftIndex].color;
 }
 
 
