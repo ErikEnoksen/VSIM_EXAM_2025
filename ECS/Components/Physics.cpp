@@ -66,6 +66,7 @@ void PhysicsSystem::update(float dt)
 
             // Sjekk om ballen er over bakken
             if (transform->position.y > groundY + ballRadius + 0.5f) {
+
                 // FRITT FALL - bruk full tyngdekraft
                 physics->acceleration = glm::vec3(0.0f, -9.81f, 0.0f);
             }
