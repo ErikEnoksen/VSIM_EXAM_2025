@@ -143,6 +143,11 @@
         button2->setStyleSheet("QPushButton { background-color: #007ACC; color: white; border-radius: 6px; }"
                                "QPushButton:hover { background-color: #3399FF; }");
 
+        QPushButton* button3 = new QPushButton("Obstacle", topBar);
+        button3->setFixedSize(80, 40);
+        button3->setStyleSheet("QPushButton { background-color: #007ACC; color: white; border-radius: 6px; }"
+                               "QPushButton:hover { background-color: #3399FF; }");
+
         // -----Play button------
         playButton = new QPushButton("▶ Play", topBar);
         playButton->setFixedSize(100, 40);
@@ -153,6 +158,7 @@
         // ----Button layout-----
         topLayout->addWidget(button1);
         topLayout->addWidget(button2);
+        topLayout->addWidget(button3);
         topLayout->addStretch();
         topLayout->addWidget(playButton);
         topLayout->addStretch();
@@ -160,6 +166,7 @@
         // ----Connect button------
         connect(button1, &QPushButton::clicked, this, &MainWindow::onButton1Clicked);
         connect(button2, &QPushButton::clicked, this, &MainWindow::onButton2Clicked);
+        connect(button3, &QPushButton::clicked, this, &MainWindow::onButton3Clicked);
 
         return topBar;
     }
@@ -290,7 +297,7 @@
         bbl::EntityID ballEntity = mVulkanWindow->spawnModel(
             "../../Assets/Models/Ball2.obj",
             "../../Assets/Textures/blue.jpg",
-            glm::vec3(-20.0f, 20.0f, -40.0f)
+            glm::vec3(76.0f, 42.0f, 0.0f)
             );
 
         auto* entityManager = mVulkanWindow->getEntityManager();
@@ -338,6 +345,49 @@
         updateSceneObjectList();
     }
 
+    void MainWindow::onButton3Clicked()
+    {
+        bbl::EntityID Emma = mVulkanWindow->spawnModel(
+            "../../Assets/Models/Emma.obj",
+            "../../Assets/Textures/blue.jpg",
+            glm::vec3(0.0f, 20.0f, 0.0f)
+            );
+
+        auto* entityManager = mVulkanWindow->getEntityManager();
+        auto* sceneManager = mVulkanWindow->getSceneManager();
+
+        if (entityManager && Emma != bbl::INVALID_ENTITY) {
+
+            bbl::Transform* transform = entityManager->getComponent<bbl::Transform>(Emma);
+            if (transform) {
+                transform->scale = glm::vec3(5.0f);
+            }
+
+            bbl::Physics physicsComp;
+            physicsComp.useGravity = false;
+            entityManager->addComponent(Emma, physicsComp);
+
+            bbl::Collision collisionComp;
+            collisionComp.colliderSize = glm::vec3(10.0f);
+            entityManager->addComponent(Emma, collisionComp);
+
+            if (sceneManager) {
+                sceneManager->setEntityName(Emma, "Emma");
+                sceneManager->markSceneDirty();
+            }
+
+            bbl::Render* render = entityManager->getComponent<bbl::Render>(Emma);
+            if (render) {
+                render->usePhong = true;
+            }
+
+            qInfo() << "Emma spawned!";
+        }
+
+        mVulkanWindow->recreateSwapChain();
+        mVulkanWindow->requestUpdate();
+        updateSceneObjectList();
+    }
     void MainWindow::onSceneObjectSelected(QListWidgetItem* item)
     {
         if (!mVulkanWindow) {

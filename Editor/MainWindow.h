@@ -87,6 +87,7 @@ private slots:
     void onPlayToggled();
     void onButton1Clicked();
     void onButton2Clicked();
+    void onButton3Clicked();
 
     //=========================================================================
     // UI Clicked

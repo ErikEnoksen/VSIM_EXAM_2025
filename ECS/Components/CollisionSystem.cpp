@@ -148,6 +148,13 @@ void CollisionSystem::checkEntityCollisions()
 void CollisionSystem::resolveCollision(EntityID entityA, EntityID entityB,
                                        Transform* transformA, Transform* transformB)
 {
+    /*
+     * Oppgave 2.4: Kollisjon med statisk hindring
+     *
+     * Statiske objekter (uten Physics-komponent) skal ikke flyttes.
+     * Kun dynamiske objekter (med Physics-komponent) skal reagere på kollisjoner.
+     */
+
     // Calculate overlap
     glm::vec3 centerA = transformA->position;
     glm::vec3 centerB = transformB->position;
@@ -165,36 +172,65 @@ void CollisionSystem::resolveCollision(EntityID entityA, EntityID entityB,
     float overlapY = totalHalfSize.y - std::abs(delta.y);
     float overlapZ = totalHalfSize.z - std::abs(delta.z);
 
-
     glm::vec3 separation(0.0f);
 
     if (overlapX < overlapY && overlapX < overlapZ) {
-
         separation.x = (delta.x > 0) ? overlapX : -overlapX;
     } else if (overlapY < overlapZ) {
-
         separation.y = (delta.y > 0) ? overlapY : -overlapY;
     } else {
-        // Separate on Z axis
         separation.z = (delta.z > 0) ? overlapZ : -overlapZ;
     }
 
-    //push the entitys apart
-    transformA->position -= separation * 2.f;
-    transformB->position += separation * 2.f;
-
-    // Stop their velocities in the collision direction
+    // Sjekk om objektene har Physics-komponenter
     Physics* physicsA = m_entityManager->getComponent<Physics>(entityA);
     Physics* physicsB = m_entityManager->getComponent<Physics>(entityB);
 
+    /*
+     * Oppgave 2.4: Håndter separasjon basert på om objekter er statiske eller dynamiske
+     *
+     * - Hvis begge har Physics: Del separasjonen (begge flytter seg)
+     * - Hvis bare ett har Physics: Bare det objektet flytter seg (statisk hindring)
+     * - Hvis ingen har Physics: Ingen flytting (skal ikke skje)
+     */
     if (physicsA && physicsB) {
+        // Begge objekter er dynamiske - del separasjonen
+        transformA->position -= separation * 0.5f;
+        transformB->position += separation * 0.5f;
+    }
+    else if (physicsA && !physicsB) {
+        // A er dynamisk, B er statisk - bare A flytter seg
+        transformA->position -= separation;
+    }
+    else if (!physicsA && physicsB) {
+        // A er statisk, B er dynamisk - bare B flytter seg
+        transformB->position += separation;
+    }
+
+    /*
+     * Oppgave 2.4: Håndter velocity ved kollisjon
+     *
+     * Fjern velocity-komponenten i kollisjonsretningen for å simulere
+     * at objektet "treffer" hindringen og stopper/spretter tilbake
+     */
+    if (physicsA || physicsB) {
         glm::vec3 normal = glm::normalize(separation);
 
-        // Remove velocity component along collision normal
-        float velA = glm::dot(physicsA->velocity, normal);
-        float velB = glm::dot(physicsB->velocity, normal);
+        // Restitusjon (bounce factor) - 0.3 gir litt sprett
+        float restitution = 0.3f;
 
-        if (velA < 0.0f) physicsA->velocity -= normal * velA;
-        if (velB > 0.0f) physicsB->velocity -= normal * velB;
+        if (physicsA) {
+            float velA = glm::dot(physicsA->velocity, normal);
+            if (velA < 0.0f) {
+                physicsA->velocity -= normal * velA * (1.0f + restitution);
+            }
+        }
+
+        if (physicsB) {
+            float velB = glm::dot(physicsB->velocity, normal);
+            if (velB > 0.0f) {
+                physicsB->velocity -= normal * velB * (1.0f + restitution);
+            }
+        }
     }
 }
