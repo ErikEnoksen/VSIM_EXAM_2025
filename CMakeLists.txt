@@ -64,6 +64,7 @@ add_executable(QtVulkan
     Shaders/Shader.vert
     Shaders/Phong.frag
     Shaders/Phong.vert
+    ECS/Systems/TrackingSystem.h ECS/Systems/TrackingSystem.cpp
 
 
     

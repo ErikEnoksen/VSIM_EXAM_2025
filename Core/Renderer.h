@@ -141,6 +141,7 @@
 
         VkPipeline graphicsPipeline;
         VkPipeline phongPipeline;
+        VkPipeline linePipeline;
 
         VkCommandPool commandPool;
 
@@ -204,6 +205,7 @@
         void createRenderPass();
         void createDescriptorSetLayout();
         void createGraphicsPipeline(std::string, std::string, VkPipeline&);
+        void createLinePipeline(std::string vertPath, std::string fragPath, VkPipeline& Pipeline);
         void createFramebuffers();
         void createCommandPool();
         void createColorResources();

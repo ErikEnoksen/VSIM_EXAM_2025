@@ -240,6 +240,7 @@ private:
     std::unordered_map<EntityID, Audio> mAudios;
     std::unordered_map<EntityID, Physics> mPhysicsComponents;
     std::unordered_map<EntityID, Collision> mCollisions;
+    std::unordered_map<EntityID, Tracking> mTrackings;
     //std::unordered_map<EntityID, Input> mInputs;
 
     // Track active entities
@@ -256,6 +257,7 @@ private:
         mAudios.erase(entity);
         mPhysicsComponents.erase(entity);
         mCollisions.erase(entity);
+        mTrackings.erase(entity);
         //mInputs.erase(entity);
     }
 };
@@ -296,6 +298,12 @@ inline std::unordered_map<EntityID, Physics>& EntityManager::getComponentMap<Phy
 template<>
 inline std::unordered_map<EntityID, Collision>& EntityManager::getComponentMap<Collision>() {
     return mCollisions;
+}
+
+template<>
+inline std::unordered_map<EntityID, Tracking>&
+EntityManager::getComponentMap<Tracking>() {
+    return mTrackings;
 }
 
 // template<>

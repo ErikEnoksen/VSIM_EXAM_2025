@@ -5,6 +5,8 @@
 #include "../ECS/Components/Physics.h"
 #include "../ECS/Components/CollisionSystem.h"
 #include "../ECS/Entity/EntityManager.h"
+#include "../ECS/Systems/TrackingSystem.h"
+#include "../Core/Utility/gpuresourcemanager.h"
 #include <memory>
 
 namespace bbl
@@ -29,13 +31,14 @@ public:
         }
     }
 
-    void initializeSystems(EntityManager* entityManager);
+    void initializeSystems(EntityManager* entityManager, GPUResourceManager* gpuResources);
 
 
 private:
     std::unique_ptr<Terrain> m_terrain;
     std::unique_ptr<PhysicsSystem> m_physicsSystem;
     std::unique_ptr<CollisionSystem> m_collisionSystem;
+    std::unique_ptr<bbl::TrackingSystem> m_trackingSystem;
 
     bool m_paused = true;
     bool m_terrainLoaded{false};

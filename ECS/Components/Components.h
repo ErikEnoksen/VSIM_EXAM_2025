@@ -20,7 +20,8 @@ enum class ComponentType
     Physics,
     Collision,
     Input,
-    Render
+    Render,
+    Tracking
 };
 
 // COMPONENT STRUCTS
@@ -100,6 +101,16 @@ struct Physics
     float mass{1.0f};
     bool useGravity{true};
 };
+
+struct Tracking
+{
+    std::vector<glm::vec3> controlPoints;  // Sample posisjoner
+    float sampleInterval = 0.1f;           // Sample hver 0.1 sekund
+    float timeSinceLastSample = 0.0f;
+    int maxPoints = 200;                   // Max 200 punkter (20 sekunder)
+    bool enabled = true;
+};
+
 
 // struct Input
 // {
