@@ -347,31 +347,50 @@
 
     void MainWindow::onButton3Clicked()
     {
-        bbl::EntityID Emma = mVulkanWindow->spawnModel(
+        /*
+     * Oppgave 2.4: Statisk hindring (obstacle)
+     * Kapittel 9.7.1: "Kollisjon mellom bevegelig og statisk objekt"
+     */
+        bbl::EntityID obstacle = mVulkanWindow->spawnModel(
             "../../Assets/Models/Cube.obj",
             "../../Assets/Textures/blue.jpg",
-            glm::vec3(0.0f, 4.0f, 10.0f)
+            glm::vec3(0.0f, 5.0f, 9.8f)  // På ballens bane
             );
 
         auto* entityManager = mVulkanWindow->getEntityManager();
         auto* sceneManager = mVulkanWindow->getSceneManager();
 
-        if (entityManager && Emma != bbl::INVALID_ENTITY) {
+        if (entityManager && obstacle != bbl::INVALID_ENTITY) {
 
+            bbl::Transform* transform = entityManager->getComponent<bbl::Transform>(obstacle);
+            if (transform) {
+                transform->scale = glm::vec3(2.0f);  // 3x3x3 meter cube
+            }
+
+            /*
+         * Oppgave 2.4: INGEN Physics komponent = statisk objekt
+         * Kapittel 9.7.1: "Når vi har ett dynamisk og ett statisk objekt"
+         */
+
+            /*
+         * Oppgave 2.4: Collision komponent
+         * Kapittel 9.7.2: Kollisjonsdetektering
+         */
             bbl::Collision collisionComp;
-            entityManager->addComponent(Emma, collisionComp);
+            collisionComp.colliderSize = glm::vec3(1.0f);  // 1x1x1 lokal størrelse
+            entityManager->addComponent(obstacle, collisionComp);
 
             if (sceneManager) {
-                sceneManager->setEntityName(Emma, "Emma");
+                sceneManager->setEntityName(obstacle, "Cube_Statisk");
                 sceneManager->markSceneDirty();
             }
 
-            bbl::Render* render = entityManager->getComponent<bbl::Render>(Emma);
+            bbl::Render* render = entityManager->getComponent<bbl::Render>(obstacle);
             if (render) {
                 render->usePhong = true;
             }
 
-            qInfo() << "Emma spawned!";
+            qInfo() << "Statisk hindring (Cube) spawnet!";
         }
 
         mVulkanWindow->recreateSwapChain();

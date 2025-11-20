@@ -149,13 +149,9 @@ void CollisionSystem::resolveCollision(EntityID entityA, EntityID entityB,
                                        Transform* transformA, Transform* transformB)
 {
     /*
-     * Oppgave 2.4: Kollisjon med statisk hindring
-     *
-     * Statiske objekter (uten Physics-komponent) skal ikke flyttes.
-     * Kun dynamiske objekter (med Physics-komponent) skal reagere på kollisjoner.
+     * Oppgave 2.4: Kollisjon
      */
 
-    // Calculate overlap
     glm::vec3 centerA = transformA->position;
     glm::vec3 centerB = transformB->position;
     glm::vec3 delta = centerB - centerA;
@@ -167,7 +163,6 @@ void CollisionSystem::resolveCollision(EntityID entityA, EntityID entityB,
     glm::vec3 halfSizeB = collisionB->colliderSize * 0.5f * transformB->scale;
     glm::vec3 totalHalfSize = halfSizeA + halfSizeB;
 
-    // Calculate overlap distances
     float overlapX = totalHalfSize.x - std::abs(delta.x);
     float overlapY = totalHalfSize.y - std::abs(delta.y);
     float overlapZ = totalHalfSize.z - std::abs(delta.z);
@@ -182,55 +177,98 @@ void CollisionSystem::resolveCollision(EntityID entityA, EntityID entityB,
         separation.z = (delta.z > 0) ? overlapZ : -overlapZ;
     }
 
-    // Sjekk om objektene har Physics-komponenter
     Physics* physicsA = m_entityManager->getComponent<Physics>(entityA);
     Physics* physicsB = m_entityManager->getComponent<Physics>(entityB);
 
     /*
-     * Oppgave 2.4: Håndter separasjon basert på om objekter er statiske eller dynamiske
-     *
-     * - Hvis begge har Physics: Del separasjonen (begge flytter seg)
-     * - Hvis bare ett har Physics: Bare det objektet flytter seg (statisk hindring)
-     * - Hvis ingen har Physics: Ingen flytting (skal ikke skje)
+     * Separasjon
      */
-    if (physicsA && physicsB) {
-        // Begge objekter er dynamiske - del separasjonen
-        transformA->position -= separation * 0.5f;
-        transformB->position += separation * 0.5f;
-    }
-    else if (physicsA && !physicsB) {
-        // A er dynamisk, B er statisk - bare A flytter seg
+    if (physicsA && !physicsB) {
         transformA->position -= separation;
     }
     else if (!physicsA && physicsB) {
-        // A er statisk, B er dynamisk - bare B flytter seg
         transformB->position += separation;
+    }
+    else if (physicsA && physicsB) {
+        transformA->position -= separation * 0.5f;
+        transformB->position += separation * 0.5f;
     }
 
     /*
-     * Oppgave 2.4: Håndter velocity ved kollisjon
-     *
-     * Fjern velocity-komponenten i kollisjonsretningen for å simulere
-     * at objektet "treffer" hindringen og stopper/spretter tilbake
+     * Hastighetskorrigering
      */
-    if (physicsA || physicsB) {
-        glm::vec3 normal = glm::normalize(separation);
+    if (glm::length(separation) < 0.001f) {
+        return;
+    }
 
-        // Restitusjon (bounce factor) - 0.3 gir litt sprett
-        float restitution = 0.3f;
+    glm::vec3 normal = glm::normalize(separation);
 
-        if (physicsA) {
-            float velA = glm::dot(physicsA->velocity, normal);
-            if (velA < 0.0f) {
-                physicsA->velocity -= normal * velA * (1.0f + restitution);
-            }
+    /*
+     * Oppgave 2.4: Ball mot statisk objekt (cube)
+     * Behandle som ball-ball med uendelig masse
+     */
+    if (physicsA && !physicsB) {
+        // A er ball, B er statisk cube
+        // Hastighet langs kollisjonsretningen
+        float v0_d = glm::dot(physicsA->velocity, normal);
+
+        // Kun korriger hvis ballen beveger seg MOT cuben
+        if (v0_d < 0.0f) {
+            // Kapittel 9.7.5: Med uendelig masse på B:
+            // v'₀ = -v₀ (perfekt refleksjon i normal-retningen)
+
+            // Tangential hastighet bevares
+            glm::vec3 v0_tangent = physicsA->velocity - v0_d * normal;
+
+            // Ny hastighet: bevar tangent, reverser normal
+            physicsA->velocity = v0_tangent - v0_d * normal;
+
+            // Energitap og tangential friksjon
+            physicsA->velocity *= 0.8f;  // 80% energi bevares
+
+            // Ekstra tangential friksjon (glir mindre langs veggen)
+            glm::vec3 tangentVel = physicsA->velocity - glm::dot(physicsA->velocity, normal) * normal;
+            physicsA->velocity -= tangentVel * 0.3f;  // 30% tangential tap
         }
+    }
+    else if (!physicsA && physicsB) {
+        // B er ball, A er statisk
+        float v1_d = glm::dot(physicsB->velocity, normal);
 
-        if (physicsB) {
-            float velB = glm::dot(physicsB->velocity, normal);
-            if (velB > 0.0f) {
-                physicsB->velocity -= normal * velB * (1.0f + restitution);
-            }
+        if (v1_d > 0.0f) {
+            glm::vec3 v1_tangent = physicsB->velocity - v1_d * normal;
+            physicsB->velocity = v1_tangent - v1_d * normal;
+            physicsB->velocity *= 0.8f;
+
+            glm::vec3 tangentVel = physicsB->velocity - glm::dot(physicsB->velocity, normal) * normal;
+            physicsB->velocity -= tangentVel * 0.3f;
         }
+    }
+    else if (physicsA && physicsB) {
+        /*
+         * Oppgave 2.4: Ball-ball kollisjon
+         * Kapittel 9.7.5: Formel 9.25 og 9.26
+         */
+
+        float m0 = physicsA->mass;
+        float m1 = physicsB->mass;
+        float totalMass = m0 + m1;
+
+        float v0_d = glm::dot(physicsA->velocity, normal);
+        float v1_d = glm::dot(physicsB->velocity, normal);
+
+        // Kapittel 9.7.5: Formel 9.25 og 9.26
+        float v0_d_new = ((m0 - m1) / totalMass) * v0_d + (2.0f * m1 / totalMass) * v1_d;
+        float v1_d_new = ((m1 - m0) / totalMass) * v1_d + (2.0f * m0 / totalMass) * v0_d;
+
+        glm::vec3 v0_tangent = physicsA->velocity - v0_d * normal;
+        glm::vec3 v1_tangent = physicsB->velocity - v1_d * normal;
+
+        // Kapittel 9.7.5: Formel 9.27 og 9.28
+        physicsA->velocity = v0_tangent + v0_d_new * normal;
+        physicsB->velocity = v1_tangent + v1_d_new * normal;
+
+        physicsA->velocity *= 0.95f;
+        physicsB->velocity *= 0.95f;
     }
 }

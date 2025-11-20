@@ -66,7 +66,7 @@ private:
 
     std::vector<FrictionZone> m_frictionZones;
     std::vector<glm::vec3> m_normals;
-    float m_normalFriction = 0.25f;
+    float m_normalFriction = 0.1f;
 };
 
 #endif // TERRAIN_H
