@@ -124,28 +124,33 @@ void PhysicsSystem::update(float dt)
         }
 
         /*
-         * Steg 4: Oppdater hastighet (Formel 9.16)
-         */
+        * Steg 4: Oppdater hastighet (Formel 9.16)
+        */
         physics->velocity += physics->acceleration * dt;
 
         /*
         * Steg 4.5: Stopp helt hvis friksjon har redusert velocity nok
         */
         if (collision && collision->isGrounded) {
-            // Sjekk om vi er på relativt flatt terreng
+            float my = m_terrain->getFrictionAt(transform->position.x, transform->position.z);
+
             glm::vec3 up(0.0f, 1.0f, 0.0f);
             glm::vec3 normal = m_terrain->getNormal(transform->position);
             float cosTheta = glm::dot(glm::normalize(normal), up);
 
-            // Kun stopp hvis på flatt terreng ca 36 grader
-            if (cosTheta > 0.8f && glm::length(physics->velocity) < 0.05f) {
+            // I friction zone (μ > 0.8), stopp ved lavere hastighet
+            float stopThreshold = (my > 0.8f) ? 0.5f : 0.05f;  // 1.8 km/h vs 0.18 km/h
+
+            // Kun stopp hvis på relativt flatt terreng OG lav hastighet
+            if (cosTheta > 0.7f && glm::length(physics->velocity) < stopThreshold) {
                 physics->velocity = glm::vec3(0.0f);
+                physics->acceleration = glm::vec3(0.0f);
             }
         }
 
         /*
-         * Steg 5: Oppdater posisjon (Formel 9.17)
-         */
+        * Steg 5: Oppdater posisjon (Formel 9.17)
+        */
         transform->position += physics->velocity * dt;
 
         // Reset akselerasjon

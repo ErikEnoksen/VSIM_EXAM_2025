@@ -56,11 +56,13 @@ AABB CollisionSystem::calculateAABB(const Transform& transform, const Collision&
     return aabb;
 }
 
+
 void CollisionSystem::checkTerrainCollision(EntityID entity, Transform* transform, Collision* collision)
 {
     if (!m_terrain || !transform || !collision) {
         return;
     }
+
     glm::vec3 terrainPosition(0.0f);
     if (m_terrainEntityID != INVALID_ENTITY) {
         if (auto* terrainTransform = m_entityManager->getComponent<Transform>(m_terrainEntityID)) {
@@ -68,26 +70,28 @@ void CollisionSystem::checkTerrainCollision(EntityID entity, Transform* transfor
         }
     }
 
-    float terrainHeight = m_terrain->getHeightAt(transform->position.x,transform->position.z,  terrainPosition);
+    float terrainHeight = m_terrain->getHeightAt(transform->position.x, transform->position.z, terrainPosition);
 
     float colliderHalfHeight = (collision->colliderSize.y * transform->scale.y) * 0.5f;
     float entityBottom = transform->position.y - colliderHalfHeight;
 
-    if (entityBottom <= terrainHeight) {
+    if (entityBottom <= terrainHeight + 0.1f) {
         collision->isGrounded = true;
         collision->isColliding = true;
 
         // Snap entity to terrain surface
-        transform->position.y = terrainHeight + colliderHalfHeight;
+        if (entityBottom < terrainHeight) {
+            transform->position.y = terrainHeight + colliderHalfHeight;
+        }
 
         Physics* physics = m_entityManager->getComponent<Physics>(entity);
-        if (physics && physics->velocity.y < 0.0f) {
+        if (physics && physics->velocity.y < -0.1f) {
             // Reverser Y-hastighet med restitusjon
-            float restitution = 0.3f;
+            float restitution = 0.1f;
             physics->velocity.y = -physics->velocity.y * restitution;
 
             // La til Bouce for mer realisisk simulasjon
-            if (std::abs(physics->velocity.y) < 0.5f) {
+            if (std::abs(physics->velocity.y) < 0.1f) {
                 physics->velocity.y = 0.0f;
             }
         }
