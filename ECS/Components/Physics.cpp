@@ -55,22 +55,16 @@ void PhysicsSystem::update(float dt)
 
             /*
              * Steg 3: Beregn akselerasjonsvektoren
-             *
-             * Hvis ballen er OVER terrenget, bruk vanlig tyngdekraft
-             * Hvis ballen er PÅ terrenget, bruk tangent-akselerasjon
              */
             float ballRadius = 1.0f;
             if (collision) {
                 ballRadius = collision->colliderSize.y * 0.5f;
             }
 
-            // Sjekk om ballen er over bakken
             if (transform->position.y > groundY + ballRadius + 0.5f) {
-                // FRITT FALL - bruk full tyngdekraft
                 physics->acceleration = glm::vec3(0.0f, -9.81f, 0.0f);
             }
             else {
-                // PÅ TERRENGET - bruk tangent-akselerasjon
                 glm::vec3 gravity(0.0f, -9.81f, 0.0f);
                 float gravityDotNormal = glm::dot(gravity, normal);
                 glm::vec3 tangentAcceleration = gravity - (gravityDotNormal * normal);
@@ -79,16 +73,6 @@ void PhysicsSystem::update(float dt)
 
                 /*
                  * Oppgave 2.2/2.3 - Friksjon
-                 *
-                 * Friksjonsformel:
-                 * F_friksjon = μ * N
-                 * a_friction = μ * g * cos(θ)
-                 *
-                 * Hvor:
-                 *   μ = friksjonskoeffisient
-                 *   N = normalkraft
-                 *   g = tyngdeakselerasjon (9.81 m/s²)
-                 *   cos(θ) = n⃗ · ŷ
                  */
                 if(collision && collision->isGrounded)
                 {
@@ -112,7 +96,6 @@ void PhysicsSystem::update(float dt)
             }
         }
         else {
-            // Vanlig gravity hvis ikke på terrain
             if (physics->useGravity && collision && !collision->isGrounded)
             {
                 physics->acceleration += m_gravity;
@@ -124,14 +107,10 @@ void PhysicsSystem::update(float dt)
          */
         physics->velocity += physics->acceleration * dt;
 
-        /*
-         * Steg 4.5: Stopp helt hvis hastighet er veldig lav
-         */
         if (collision && collision->isGrounded) {
             float currentSpeed = glm::length(physics->velocity);
 
-            // Stopp hvis hastigheten er ekstremt lav
-            if (currentSpeed < 0.01f) {  // 0.36 km/h
+            if (currentSpeed < 0.01f) {
                 physics->velocity = glm::vec3(0.0f);
             }
         }
@@ -139,7 +118,43 @@ void PhysicsSystem::update(float dt)
         /*
          * Steg 5: Oppdater posisjon (Formel 9.17)
          */
+        glm::vec3 oldPosition = transform->position;
         transform->position += physics->velocity * dt;
+
+        /*
+         * Steg 6: Beregn ballens rotasjonsvektor (Formel 9.11)
+         * Steg 7: Beregn ballens rotasjon (Formel 9.10)
+         *
+         * Kapittel 9.4: "Ved rulling er det en sammenheng mellom
+         * rotasjonsvinkel Θ, radius r og translasjon s"
+         */
+        if (collision && collision->isGrounded) {
+            float ballRadius = collision->colliderSize.y * 0.5f;
+
+            if (ballRadius > 0.0f && glm::length(physics->velocity) > 0.001f) {
+                // Kapittel 9.4, Formel 9.10: Θ = s/r
+                // s (translasjon) = distanse beveget dette framesteget
+                glm::vec3 movement = transform->position - oldPosition;
+                float distance = glm::length(movement);
+
+                // Rotasjonsvinkel i radianer
+                float rotationAngle = distance / ballRadius;
+
+                // Kapittel 9.4, Formel 9.11: ~r = ~n × ~v
+                // Rotasjonsaksen er vinkelrett på både normal og hastighet
+                glm::vec3 terrainNormal = m_terrain->getNormal(transform->position);
+                glm::vec3 velocityDir = glm::normalize(physics->velocity);
+                glm::vec3 rotationAxis = glm::cross(terrainNormal, velocityDir);
+
+                if (glm::length(rotationAxis) > 0.001f) {
+                    rotationAxis = glm::normalize(rotationAxis);
+
+                    // Oppdater rotasjon (akkumulert over tid)
+                    // Roter rundt rotationAxis med rotationAngle
+                    transform->rotation += rotationAxis * rotationAngle;
+                }
+            }
+        }
 
         // Reset akselerasjon
         physics->acceleration = glm::vec3(0.0f);

@@ -296,7 +296,7 @@
      */
         bbl::EntityID ballEntity = mVulkanWindow->spawnModel(
             "../../Assets/Models/Ball2.obj",
-            "../../Assets/Textures/blue.jpg",
+            "../../Assets/Textures/ball.jpg",
             glm::vec3(76.0f, 42.0f, 0.0f)
             );
 
