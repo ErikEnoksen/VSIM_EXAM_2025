@@ -65,6 +65,7 @@ struct Render
     size_t textureResourceID{0};
     bool visible{true};
     bool usePhong{false};
+    bool isLine = {false};
     float opacity{1.0f};
 };
 
