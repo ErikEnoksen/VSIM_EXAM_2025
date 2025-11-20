@@ -122,6 +122,10 @@ void Terrain::calculateNormals()
     // Oppgave 1.3.2: "Compute normals in each vertex to obtain a smooth-looking surface"
     // Kapittel 6.2.1: "Normalvektoren til en flate"
 
+    // VIKTIG: Nullstill og resize m_normals array først!
+    m_normals.clear();
+    m_normals.resize(m_vertices.size(), glm::vec3(0.0f));
+
     // Nullstill normaler (bruker color-feltet for å lagre normaler)
     for (auto& vertex : m_vertices)
     {
@@ -147,6 +151,11 @@ void Terrain::calculateNormals()
         // Formel 6.1: Kryssproduktet beregnes med determinanter
         glm::vec3 normal = glm::cross(edge1, edge2);
 
+        // Lagre i m_normals (for fysikk)
+        m_normals[idx0] += normal;
+        m_normals[idx1] += normal;
+        m_normals[idx2] += normal;
+
         // Akkumuler normalvektorer for hver vertex (for smooth shading)
         m_vertices[idx0].color += normal;
         m_vertices[idx1].color += normal;
@@ -155,15 +164,20 @@ void Terrain::calculateNormals()
 
     // Kapittel 6.2.1: "Normaliser normalvektoren slik at den får lengde 1"
     // Formel: n/||n|| gir enhetsnormalvektor
-    for (auto& vertex : m_vertices)
+    for (size_t i = 0; i < m_vertices.size(); i++)
     {
-        if (glm::length(vertex.color) > 0.0f)
-        {
-            vertex.color = glm::normalize(vertex.color);
+        // Normaliser m_normals (for fysikk)
+        if (glm::length(m_normals[i]) > 0.0f) {
+            m_normals[i] = glm::normalize(m_normals[i]);
+        } else {
+            m_normals[i] = glm::vec3(0.0f, 1.0f, 0.0f);
         }
-        else
-        {
-            vertex.color = glm::vec3(0.0f, 1.0f, 0.0f);
+
+        // Normaliser vertex.color (for visualisering)
+        if (glm::length(m_vertices[i].color) > 0.0f) {
+            m_vertices[i].color = glm::normalize(m_vertices[i].color);
+        } else {
+            m_vertices[i].color = glm::vec3(0.0f, 1.0f, 0.0f);
         }
     }
 }
@@ -500,7 +514,7 @@ void Terrain::generateMeshFromHeightMap(const std::vector<float>& heightMap)
 // OPPGAVE 2.1 Jobb. Må bare få tak i Normalen for å bruke til Fysikken
 glm::vec3 Terrain::getNormal(const glm::vec3& worldPos) const
 {
-    if (m_vertices.empty()) {
+    if (m_normals.empty()) {
         return glm::vec3(0.0f, 1.0f, 0.0f);
     }
 
@@ -521,7 +535,7 @@ glm::vec3 Terrain::getNormal(const glm::vec3& worldPos) const
     int topLeftIndex = gridX + gridZ * m_width;
 
     // Normalen er allerede beregnet
-    return m_vertices[topLeftIndex].color;
+    return m_normals[topLeftIndex];
 
 }
 /*
