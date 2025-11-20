@@ -314,11 +314,18 @@
             entityManager->addComponent(ballEntity, physicsComp);
 
         /*
-         * Legg til Collision component
+         * Legg til Collision componentDDSDWSA
          */
             bbl::Collision collisionComp;
             collisionComp.colliderSize = glm::vec3(2.0f);
             entityManager->addComponent(ballEntity, collisionComp);
+
+            //Oppgave 2.5: Tracking-komponent på ballen
+            bbl::Tracking trackingComp;
+            trackingComp.sampleInterval = 0.1f;   // Δt = 0.1 s (kan endres til f.eks. 0.5f)
+            trackingComp.maxPoints      = 200;    // Maks antall kontrollpunkter P_k
+            trackingComp.enabled        = true;
+            entityManager->addComponent(ballEntity, trackingComp);
 
             if (sceneManager) {
                 sceneManager->setEntityName(ballEntity, "Ball");

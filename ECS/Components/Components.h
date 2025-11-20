@@ -105,10 +105,23 @@ struct Physics
 
 struct Tracking
 {
-    std::vector<glm::vec3> controlPoints;  // Sample posisjoner
-    float sampleInterval = 0.1f;           // Sample hver 0.1 sekund
+    // Kontrollpunkter P_k = x(t_k) langs banen
+    // Vi sampler posisjonen x(t) til ballen ved diskrete tidspunkter
+    // t_k = k * Δt,  der Δt = sampleInterval
+    std::vector<glm::vec3> controlPoints;
+
+    // Fast tidssteg Δt mellom hver sampling (i sekunder)
+    // t_{k+1} = t_k + Δt
+    float sampleInterval = 0.1f;
+
+    // Akkumulerer tid siden siste sampling:
+    // timeSinceLastSample = Σ Δt_frame
     float timeSinceLastSample = 0.0f;
-    int maxPoints = 200;                   // Max 200 punkter (20 sekunder)
+
+    // Maks antall lagrede punkter (avgrenser minne og lengde på trace)
+    int maxPoints = 200;
+
+    // Slå av/på tracing for denne entiteten
     bool enabled = true;
 };
 

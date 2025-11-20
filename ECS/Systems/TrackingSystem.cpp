@@ -40,42 +40,91 @@ void TrackingSystem::update(float dt)
     }
 }
 
-void TrackingSystem::samplePosition(EntityID entity, Transform* transform, Tracking* tracking, float dt)
+void TrackingSystem::samplePosition(EntityID entity,Transform* transform,Tracking* tracking,float dt)
 {
     /*
      * Oppgave 2.5: "Sampling positions for fixed time intervals"
+     *
+     * Kontinuerlig bane: x(t)
+     * Vi diskretiserer denne ved å sample posisjon ved faste tidsteg Δt:
+     *
+     *      t_k   = k · Δt          (k = 0,1,2,...)
+     *      P_k   = x(t_k)          (kontrollpunkter / samplede posisjoner)
+     *
+     * I koden:
+     *  - sampleInterval  ≈ Δt
+     *  - timeSinceLastSample akkumulerer tid inntil vi når Δt
      */
 
-    tracking->timeSinceLastSample += dt;
+    tracking->timeSinceLastSample += dt;   // dt = tidssteg per frame
 
     if (tracking->timeSinceLastSample >= tracking->sampleInterval) {
+        // Vi har nå passert neste t_k
         tracking->timeSinceLastSample = 0.0f;
 
-        // Legg til ny posisjon
+        // Nytt kontrollpunkt P_k = x(t_k) ≈ transform->position
         tracking->controlPoints.push_back(transform->position);
 
-        // Fjern eldste punkter hvis vi har for mange
+        // Begrens antall lagrede punkter (FIFO):
+        // hvis |P_k| > maxPoints, fjern eldste P_0
         if (tracking->controlPoints.size() > static_cast<size_t>(tracking->maxPoints)) {
             tracking->controlPoints.erase(tracking->controlPoints.begin());
         }
 
-        qDebug() << "Sampled position:" << transform->position.x << transform->position.y << transform->position.z
+        qDebug() << "Sampled position:"
+                 << transform->position.x
+                 << transform->position.y
+                 << transform->position.z
                  << "Total points:" << tracking->controlPoints.size();
     }
 }
+
 
 void TrackingSystem::updateTraceMesh(EntityID entity, Tracking* tracking)
 {
     /*
      * Oppgave 2.5: "Draw the ball's trace on the surface"
      *
+     * Faglig ønsket modell (3D B-spline-kurve):
+     * ----------------------------------------
+     * En kubisk, uniform B-spline kan skrives som
+     *
+     *      C(t) = Σ_{i=0}^{n} N_{i,3}(t) · P_i
+     *
+     * der
+     *      P_i           = kontrollpunkter (samplede posisjoner)
+     *      N_{i,3}(t)    = B-spline basisfunksjoner av grad 3
+     *
+     * For ett kurvesegment mellom P0, P1, P2, P3 kan man også bruke matriseform:
+     *
+     *      C(u) = [u^3  u^2  u  1] · (1/6) · M_B · [P0  P1  P2  P3]^T,
+     *      0 ≤ u ≤ 1,
+     *
+     * der M_B er B-spline-matrisen
+     *
+     *      M_B = [ -1  3 -3  1
+     *               3 -6  3  0
+     *              -3  0  3  0
+     *               1  4  1  0 ].
+     *
+     * I denne implementasjonen (for enkelhets skyld):
+     * ----------------------------------------------
+     * Vi tegner foreløpig en polylinje (piecewise lineær approksimasjon)
+     * gjennom kontrollpunktene:
+     *
+     *  For hvert intervall [P_i, P_{i+1}] kan en lineær interpolasjon skrives som
+     *
+     *      C_i(α) = (1 - α) · P_i + α · P_{i+1},   0 ≤ α ≤ 1.
+     *
+     * Når vi tegner en line strip med verteksene P_0, P_1, ..., P_n,
+     * får vi geometrisk akkurat denne lineære kurven.
      */
 
     if (tracking->controlPoints.size() < 2) {
         return;
     }
 
-    // Finn eller lag trace entity
+    // Finn eller lag trace entity knyttet til denne ballen
     EntityID traceEntity = INVALID_ENTITY;
 
     auto it = m_traceEntities.find(entity);
@@ -85,7 +134,7 @@ void TrackingSystem::updateTraceMesh(EntityID entity, Tracking* tracking)
         traceEntity = m_entityManager->createEntity();
         m_traceEntities[entity] = traceEntity;
 
-        // Legg til Transform
+        // Legg til Transform (identitet – trace tegnes i world space)
         Transform traceTransform;
         traceTransform.position = glm::vec3(0.0f);
         m_entityManager->addComponent(traceEntity, traceTransform);
@@ -95,38 +144,40 @@ void TrackingSystem::updateTraceMesh(EntityID entity, Tracking* tracking)
         traceEntity = it->second;
     }
 
-    // Lag mesh data fra kontrollpunkter
+    // Lag mesh-data fra kontrollpunktene P_k
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
 
     /*
-     * Oppgave 2.5: Lag linje-strip mesh
-     * Rette linjer mellom kontrollpunkter
+     * Oppgave 2.5: Line strip mesh
+     *
+     * Vi bruker hvert kontrollpunkt P_k som en vertex i et line strip.
+     * GPU-en tegner så rette linjer mellom P_k og P_{k+1}.
      */
     for (size_t i = 0; i < tracking->controlPoints.size(); ++i) {
         Vertex v;
-        v.pos = tracking->controlPoints[i];
-        v.color = glm::vec3(1.0f, 0.0f, 0.0f);  // RØD
+        v.pos      = tracking->controlPoints[i];         // P_k = (x_k, y_k, z_k)
+        v.color    = glm::vec3(1.0f, 0.0f, 0.0f);        // rød linje for trace
         v.texCoord = glm::vec2(0.0f);
         vertices.push_back(v);
 
-        // Lag line strip indices (linje mellom punkt i og i+1)
+        // Lag line-indekser mellom P_i og P_{i+1}
         if (i < tracking->controlPoints.size() - 1) {
             indices.push_back(static_cast<uint32_t>(i));
             indices.push_back(static_cast<uint32_t>(i + 1));
         }
     }
 
-    // Upload mesh til GPU for å kunne runne linjen. kan ikke gjøre av GPU
+    // Upload mesh til GPU slik at vi kan tegne linjen i Vulkan
     if (!vertices.empty() && !indices.empty()) {
 
         MeshData meshData;
         meshData.vertices = vertices;
-        meshData.indices = indices;
+        meshData.indices  = indices;
 
         size_t meshResourceID = m_gpuResources->uploadMesh(meshData);
 
-        // Oppdater eller legg til Mesh komponent
+        // Oppdater eller legg til Mesh-komponent
         Mesh* meshComp = m_entityManager->getComponent<Mesh>(traceEntity);
         if (meshComp) {
             meshComp->meshResourceID = meshResourceID;
@@ -136,18 +187,19 @@ void TrackingSystem::updateTraceMesh(EntityID entity, Tracking* tracking)
             m_entityManager->addComponent(traceEntity, newMesh);
         }
 
-        // Oppdater eller legg til Render komponent
+        // Oppdater eller legg til Render-komponent
         Render* renderComp = m_entityManager->getComponent<Render>(traceEntity);
         if (renderComp) {
             renderComp->meshResourceID = meshResourceID;
-            renderComp->visible = true;
-            renderComp->usePhong = false;
+            renderComp->visible        = true;
+            renderComp->usePhong       = false;  // enkel linje-shader
+            renderComp->isLine         = true;
         } else {
             Render newRender;
             newRender.meshResourceID = meshResourceID;
-            newRender.visible = true;
-            newRender.usePhong = false;
-            newRender.isLine = true;
+            newRender.visible        = true;
+            newRender.usePhong       = false;
+            newRender.isLine         = true;
             m_entityManager->addComponent(traceEntity, newRender);
         }
     }
