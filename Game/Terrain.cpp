@@ -522,9 +522,84 @@ glm::vec3 Terrain::getNormal(const glm::vec3& worldPos) const
 
     // Normalen er allerede beregnet
     return m_vertices[topLeftIndex].color;
+
+}
+/*
+ * OPPGAVE 2.3 Friskjons soner
+ */
+void Terrain::setFrictionZone(const glm::vec3& center, const glm::vec2& size, float my)
+{
+    /*
+     * Oppgave 2.3: Definer friksjons-sone
+     *
+     * Parametere:
+     *   center - senterpunkt (x, y, z)
+     *   size - størrelse (bredde, dybde)
+     *   my (μ) - friksjonskoeffisient
+     */
+    FrictionZone zone;
+    zone.center = center;
+    zone.size = size;
+    zone.my = my;
+
+    m_frictionZones.push_back(zone);
+    calculateNormals();
 }
 
+float Terrain::getFrictionAt(float worldX, float worldZ) const
+{
+    /*
+     * Oppgave 2.3: Hent friksjonskoeffisient basert på posisjon
+     *
+     * Sjekker om posisjon (worldX, worldZ) er innenfor en friksjons-sone.
+     * Returnerer høy friksjon hvis inne i sone, ellers normal friksjon.
+     */
 
+    // Sjekk alle friksjons-soner
+    for (const auto& zone : m_frictionZones) {
+        float halfWidth = zone.size.x * 0.5f;
+        float halfDepth = zone.size.y * 0.5f;
+
+        bool inX = (worldX >= zone.center.x - halfWidth &&
+                    worldX <= zone.center.x + halfWidth);
+        bool inZ = (worldZ >= zone.center.z - halfDepth &&
+                    worldZ <= zone.center.z + halfDepth);
+
+        if (inX && inZ) {
+            return zone.my;  // Høy friksjon inne i sone
+        }
+    }
+
+    return m_normalFriction;  // Normal friksjon utenfor sone
+}
+
+void Terrain::applyFrictionZoneColors()
+{
+    /*
+     * Oppgave 2.3: Visualiser friksjons-soner med rød farge
+     *
+     * Endrer vertex.color til rød (1.0, 0.0, 0.0) for alle vertices
+     * som er innenfor en friksjons-sone.
+     */
+
+    for (auto& vertex : m_vertices) {
+        for (const auto& zone : m_frictionZones) {
+            float halfWidth = zone.size.x * 0.5f;
+            float halfDepth = zone.size.y * 0.5f;
+
+            bool inX = (vertex.pos.x >= zone.center.x - halfWidth &&
+                        vertex.pos.x <= zone.center.x + halfWidth);
+            bool inZ = (vertex.pos.z >= zone.center.z - halfDepth &&
+                        vertex.pos.z <= zone.center.z + halfDepth);
+
+            if (inX && inZ) {
+                vertex.color = glm::vec3(0.0f, 0.0f, 1.0f);  // RØD
+            }
+        }
+    }
+
+    qInfo() << "Friction zone colors applied!";
+}
 
 
 

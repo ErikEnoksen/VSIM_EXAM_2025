@@ -91,9 +91,9 @@ void PhysicsSystem::update(float dt)
                  *   cos(θ) = n⃗ · ŷ (kryss produktet mellom normal og opp-retning)
                  */
 
-                if(collision && collision->isGrounded && glm::length(physics->velocity) > 0.01f)
+                if(collision && collision->isGrounded&& glm::length(physics->velocity) > 0.01f)
                 {
-                    float my = 0.25f;
+                    float my = m_terrain->getFrictionAt(transform->position.x, transform->position.z);
 
                     glm::vec3 up(0.0f, 1.0f, 0.0f);
                     float cosTheta = glm::dot(normal, up);
@@ -106,6 +106,12 @@ void PhysicsSystem::update(float dt)
                     glm::vec3 frictionAccel = -frictionMagnitude * velocityDir;
 
                     physics->acceleration += frictionAccel;
+
+                    float speedKmh = glm::length(physics->velocity) * 3.6f; // m/s → km/h
+                    qDebug() << "Pos:" << transform->position.x << transform->position.z
+                             << "| μ:" << my
+                             << "| Speed:" << speedKmh << "km/h"
+                             << "| Friction:" << frictionMagnitude;
                 }
             }
         }

@@ -19,7 +19,12 @@ public:
 
     float getHeightAt(float worldX, float worldZ, const glm::vec3& terrainPosition = glm::vec3(0.0f)) const;
 
-
+    /*
+     * Oppgave 2.3
+     */
+    float getFrictionAt(float worldx, float worldz) const;
+    void setFrictionZone(const glm::vec3& center, const glm::vec2& size, float my);
+    void applyFrictionZoneColors();
 
     // Get mesh data
     const std::vector<Vertex>& getVertices() const { return m_vertices; }
@@ -48,8 +53,20 @@ private:
     std::vector<Vertex> m_vertices;
     std::vector<uint32_t> m_indices;
 
-
     std::vector<float> m_heightData;
+
+    /*
+     * Oppgave 2.3
+     */
+    struct FrictionZone {
+        glm::vec3 center;
+        glm::vec2 size;
+        float my;
+    };
+
+    std::vector<FrictionZone> m_frictionZones;
+    std::vector<glm::vec3> m_normals;
+    float m_normalFriction = 0.25f;
 };
 
 #endif // TERRAIN_H
