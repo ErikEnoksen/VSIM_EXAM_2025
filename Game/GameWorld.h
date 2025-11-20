@@ -17,6 +17,8 @@ public:
 
     void Setup();
     void update(float dt);
+    void setPaused(bool paused) { m_paused = paused; }
+    bool isPaused() const { return m_paused; }
 
 
     Terrain* getTerrain() const { return m_terrain.get(); }
@@ -35,7 +37,7 @@ private:
     std::unique_ptr<PhysicsSystem> m_physicsSystem;
     std::unique_ptr<CollisionSystem> m_collisionSystem;
 
-
+    bool m_paused = true;
     bool m_terrainLoaded{false};
 };
 

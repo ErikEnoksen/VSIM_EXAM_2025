@@ -749,11 +749,13 @@
         playButton->setText(isPlaying ? "⏹ Stop" : "▶ Play");
         playButton->setStyleSheet(playButtonStyle(isPlaying));
 
-        auto* entityManager = mVulkanWindow->getEntityManager();
+        // Toggle physics simulation
+        bbl::GameWorld* gameWorld = mVulkanWindow->getGameWorld();
+        if (gameWorld) {
+            gameWorld->setPaused(!isPlaying);
+        }
 
-
-
-        qInfo() << (isPlaying ? "Play mode started." : "Play mode stopped.");
+        qInfo() << (isPlaying ? "Physics simulation started." : "Physics simulation paused.");
     }
 
     void MainWindow::on_action_NewScene_triggered()
