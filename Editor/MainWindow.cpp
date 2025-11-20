@@ -348,9 +348,9 @@
     void MainWindow::onButton3Clicked()
     {
         bbl::EntityID Emma = mVulkanWindow->spawnModel(
-            "../../Assets/Models/Emma.obj",
+            "../../Assets/Models/Cube.obj",
             "../../Assets/Textures/blue.jpg",
-            glm::vec3(0.0f, 20.0f, 0.0f)
+            glm::vec3(0.0f, 4.0f, 10.0f)
             );
 
         auto* entityManager = mVulkanWindow->getEntityManager();
@@ -358,17 +358,7 @@
 
         if (entityManager && Emma != bbl::INVALID_ENTITY) {
 
-            bbl::Transform* transform = entityManager->getComponent<bbl::Transform>(Emma);
-            if (transform) {
-                transform->scale = glm::vec3(5.0f);
-            }
-
-            bbl::Physics physicsComp;
-            physicsComp.useGravity = false;
-            entityManager->addComponent(Emma, physicsComp);
-
             bbl::Collision collisionComp;
-            collisionComp.colliderSize = glm::vec3(10.0f);
             entityManager->addComponent(Emma, collisionComp);
 
             if (sceneManager) {
