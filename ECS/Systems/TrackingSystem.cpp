@@ -147,6 +147,7 @@ void TrackingSystem::updateTraceMesh(EntityID entity, Tracking* tracking)
             newRender.meshResourceID = meshResourceID;
             newRender.visible = true;
             newRender.usePhong = false;
+            newRender.isLine = true;
             m_entityManager->addComponent(traceEntity, newRender);
         }
     }
