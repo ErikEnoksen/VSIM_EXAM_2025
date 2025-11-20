@@ -35,8 +35,8 @@ void bbl::GameWorld::Setup()
      * Størrelse: 20x20 meter
      */
     glm::vec3 zoneCenter(0.0f, 0.0f, 0.0f);  // Sentrum av terrain
-    glm::vec2 zoneSize(20.0f, 20.0f);        // 20x20 meter
-    float highFriction = 0.5f;                // Høy friksjon (normal er 0.25)
+    glm::vec2 zoneSize(30.0f, 30.0f);        // 20x20 meter
+    float highFriction = 0.f;                // Høy friksjon (normal er 0.25)
 
     m_terrain->setFrictionZone(zoneCenter, zoneSize, highFriction);
 

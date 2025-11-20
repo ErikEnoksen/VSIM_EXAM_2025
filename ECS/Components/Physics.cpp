@@ -59,7 +59,7 @@ void PhysicsSystem::update(float dt)
              * Hvis ballen er OVER terrenget, bruk vanlig tyngdekraft
              * Hvis ballen er PÅ terrenget, bruk tangent-akselerasjon
              */
-            float ballRadius = 1.0f;  // Antar radius = 1m
+            float ballRadius = 1.0f;
             if (collision) {
                 ballRadius = collision->colliderSize.y * 0.5f;
             }
@@ -78,7 +78,7 @@ void PhysicsSystem::update(float dt)
                 physics->acceleration = tangentAcceleration;
 
                 /*
-                 * Oppgave 2.2/2.3
+                 * Oppgave 2.2/2.3 - Friksjon
                  *
                  * Friksjonsformel:
                  * F_friksjon = μ * N
@@ -88,30 +88,26 @@ void PhysicsSystem::update(float dt)
                  *   μ = friksjonskoeffisient
                  *   N = normalkraft
                  *   g = tyngdeakselerasjon (9.81 m/s²)
-                 *   cos(θ) = n⃗ · ŷ (kryss produktet mellom normal og opp-retning)
+                 *   cos(θ) = n⃗ · ŷ
                  */
-
-                if(collision && collision->isGrounded&& glm::length(physics->velocity) > 0.01f)
+                if(collision && collision->isGrounded)
                 {
-                    float my = m_terrain->getFrictionAt(transform->position.x, transform->position.z);
+                    float currentSpeed = glm::length(physics->velocity);
 
-                    glm::vec3 up(0.0f, 1.0f, 0.0f);
-                    float cosTheta = glm::dot(normal, up);
+                    if (currentSpeed > 0.01f) {
+                        float my = m_terrain->getFrictionAt(transform->position.x, transform->position.z);
 
-                    float g = 9.81f;
-                    float frictionMagnitude = my * g * cosTheta;
+                        glm::vec3 up(0.0f, 1.0f, 0.0f);
+                        float cosTheta = glm::dot(normal, up);
 
-                    // Bare legg til friksjon, la threshold håndtere stopp
-                    glm::vec3 velocityDir = glm::normalize(physics->velocity);
-                    glm::vec3 frictionAccel = -frictionMagnitude * velocityDir;
+                        float g = 9.81f;
+                        float frictionMagnitude = my * g * cosTheta;
 
-                    physics->acceleration += frictionAccel;
+                        glm::vec3 velocityDir = glm::normalize(physics->velocity);
+                        glm::vec3 frictionAccel = -frictionMagnitude * velocityDir;
 
-                    float speedKmh = glm::length(physics->velocity) * 3.6f; // m/s → km/h
-                    qDebug() << "Pos:" << transform->position.x << transform->position.z
-                             << "| μ:" << my
-                             << "| Speed:" << speedKmh << "km/h"
-                             << "| Friction:" << frictionMagnitude;
+                        physics->acceleration += frictionAccel;
+                    }
                 }
             }
         }
@@ -124,33 +120,25 @@ void PhysicsSystem::update(float dt)
         }
 
         /*
-        * Steg 4: Oppdater hastighet (Formel 9.16)
-        */
+         * Steg 4: Oppdater hastighet (Formel 9.16)
+         */
         physics->velocity += physics->acceleration * dt;
 
         /*
-        * Steg 4.5: Stopp helt hvis friksjon har redusert velocity nok
-        */
+         * Steg 4.5: Stopp helt hvis hastighet er veldig lav
+         */
         if (collision && collision->isGrounded) {
-            float my = m_terrain->getFrictionAt(transform->position.x, transform->position.z);
+            float currentSpeed = glm::length(physics->velocity);
 
-            glm::vec3 up(0.0f, 1.0f, 0.0f);
-            glm::vec3 normal = m_terrain->getNormal(transform->position);
-            float cosTheta = glm::dot(glm::normalize(normal), up);
-
-            // I friction zone (μ > 0.8), stopp ved lavere hastighet
-            float stopThreshold = (my > 0.8f) ? 0.5f : 0.05f;  // 1.8 km/h vs 0.18 km/h
-
-            // Kun stopp hvis på relativt flatt terreng OG lav hastighet
-            if (cosTheta > 0.7f && glm::length(physics->velocity) < stopThreshold) {
+            // Stopp hvis hastigheten er ekstremt lav
+            if (currentSpeed < 0.01f) {  // 0.36 km/h
                 physics->velocity = glm::vec3(0.0f);
-                physics->acceleration = glm::vec3(0.0f);
             }
         }
 
         /*
-        * Steg 5: Oppdater posisjon (Formel 9.17)
-        */
+         * Steg 5: Oppdater posisjon (Formel 9.17)
+         */
         transform->position += physics->velocity * dt;
 
         // Reset akselerasjon
