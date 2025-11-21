@@ -220,7 +220,7 @@ void CollisionSystem::resolveCollision(EntityID entityA, EntityID entityB,
             // Tangential hastighet bevares
             glm::vec3 v0_tangent = physicsA->velocity - v0_d * normal;
 
-            // Ny hastighet: bevar tangent, reverser normal
+            //bevar tangent, reverser normal
             physicsA->velocity = v0_tangent - v0_d * normal;
 
             // Energitap og tangential friksjon

@@ -1,4 +1,4 @@
-#include "GameWorld.h"
+    #include "GameWorld.h"
 #include "../Editor/MainWindow.h"
 
 bbl::GameWorld::GameWorld()
@@ -81,15 +81,14 @@ void bbl::GameWorld::update(float dt)
         return;
     }
 
-    if (m_collisionSystem) {
-        m_collisionSystem->update(dt);
-    }
     if (m_physicsSystem) {
         m_physicsSystem->update(dt);
     }
-    /*
-     * Oppgave 2.5: Tracking
-     */
+
+    if (m_collisionSystem) {
+        m_collisionSystem->update(dt);
+    }
+
     if (m_trackingSystem) {
         m_trackingSystem->update(dt);
     }

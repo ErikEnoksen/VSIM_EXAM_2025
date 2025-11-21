@@ -326,6 +326,15 @@
             trackingComp.maxPoints      = 200;    // Maks antall kontrollpunkter P_k
             trackingComp.enabled        = true;
             entityManager->addComponent(ballEntity, trackingComp);
+            bbl::Tracking* verifyTracking = entityManager->getComponent<bbl::Tracking>(ballEntity);
+            if (verifyTracking) {
+                qDebug() << "✓ Tracking component successfully added to ball entity" << ballEntity;
+                qDebug() << "  - sampleInterval:" << verifyTracking->sampleInterval;
+                qDebug() << "  - maxPoints:" << verifyTracking->maxPoints;
+                qDebug() << "  - enabled:" << verifyTracking->enabled;
+            } else {
+                qDebug() << "✗ ERROR: Tracking component NOT found on ball!";
+            }
 
             if (sceneManager) {
                 sceneManager->setEntityName(ballEntity, "Ball");
@@ -354,7 +363,7 @@
 
     void MainWindow::onButton3Clicked()
     {
-        /*
+    /*
      * Oppgave 2.4: Statisk hindring (obstacle)
      * Kapittel 9.7.1: "Kollisjon mellom bevegelig og statisk objekt"
      */

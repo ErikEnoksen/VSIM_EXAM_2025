@@ -89,9 +89,9 @@ void Renderer::initVulkan() {
     createImageViews();
     createRenderPass();
     createDescriptorSetLayout();
-    createGraphicsPipeline("Shaders/vert.spv", "Shaders/frag.spv", graphicsPipeline);
-    createGraphicsPipeline("Shaders/phong.vert.spv", "Shaders/phong.frag.spv", phongPipeline);
-    createGraphicsPipeline("Shaders/vert.spv", "Shaders/frag.spv", linePipeline);
+    createGraphicsPipeline("Shaders/vert.spv", "Shaders/frag.spv", graphicsPipeline, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 1.0f);
+    createGraphicsPipeline("Shaders/phong.vert.spv", "Shaders/phong.frag.spv", phongPipeline, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 1.0f);
+    createGraphicsPipeline("Shaders/vert.spv", "Shaders/frag.spv", linePipeline, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, 1.0f);
     createCommandPool();
     createColorResources();
     createDepthResources();
@@ -460,9 +460,9 @@ void Renderer::recreateSwapChain() {
     createSwapChain();
     createImageViews();
     createRenderPass();
-    createGraphicsPipeline("Shaders/vert.spv", "Shaders/frag.spv", graphicsPipeline);
-    createGraphicsPipeline("Shaders/phong.vert.spv", "Shaders/phong.frag.spv", phongPipeline);
-    createGraphicsPipeline("Shaders/phong.vert.spv", "Shaders/phong.frag.spv", linePipeline);
+    createGraphicsPipeline("Shaders/vert.spv", "Shaders/frag.spv", graphicsPipeline, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 1.0f);
+    createGraphicsPipeline("Shaders/phong.vert.spv", "Shaders/phong.frag.spv", phongPipeline, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 1.0f);
+    createGraphicsPipeline("Shaders/vert.spv", "Shaders/frag.spv", linePipeline, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, 1.0f);
     createColorResources();
     createDepthResources();
     createFramebuffers();
@@ -856,7 +856,10 @@ void Renderer::createDescriptorSetLayout() {
     }
 }
 
-void Renderer::createGraphicsPipeline(std::string vertPath, std::string fragPath, VkPipeline& Pipeline) {
+void Renderer::createGraphicsPipeline(std::string vertPath, std::string fragPath, VkPipeline& Pipeline,
+    VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,float lineWidth = 1.0f)
+{
+
     auto vertShaderCode = readFile(PATH + vertPath);
     auto fragShaderCode = readFile(PATH + fragPath);
 
@@ -890,7 +893,7 @@ void Renderer::createGraphicsPipeline(std::string vertPath, std::string fragPath
     // 2. Input assembly
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.topology = topology;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
     // 3. Viewport & Scissor (Modified for dynamic state)
@@ -917,7 +920,7 @@ void Renderer::createGraphicsPipeline(std::string vertPath, std::string fragPath
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterizer.lineWidth = 1.0f;
+    rasterizer.lineWidth = lineWidth;
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
@@ -997,7 +1000,36 @@ void Renderer::createGraphicsPipeline(std::string vertPath, std::string fragPath
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
 }
 
+void Renderer::createFramebuffers()
+{
+    //Resize framebuffer count to equal swap chain image count
+    swapChainFramebuffers.resize(swapChainImageViews.size());
 
+    //Create a framebuffer for each swap chain image
+    for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+        std::array<VkImageView, 3> attachments = {
+            colorImageView,
+            depthImageView,
+            swapChainImageViews[i]
+        };
+
+        VkFramebufferCreateInfo framebufferInfo{};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = renderPass;
+        framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+        framebufferInfo.pAttachments = attachments.data();
+        framebufferInfo.width = swapChainExtent.width;
+        framebufferInfo.height = swapChainExtent.height;
+        framebufferInfo.layers = 1;
+
+        //Create Framebuffer
+        if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create framebuffer!");
+        } else{
+            qDebug("   Successfully created a Framebuffer %d!", (int)i);
+        }
+    }
+}
 void Renderer::createCommandPool()
 {
     //Get the queue family indices for the chosen Physical Device
@@ -1738,7 +1770,6 @@ void Renderer::createCommandBuffers() {
             bbl::Render* renderComp = entityManager->getComponent<bbl::Render>(entity);
             bbl::Transform* transform = entityManager->getComponent<bbl::Transform>(entity);
 
-            // Skip if missing required components, but still increment entityIndex
             if (!renderComp || !transform) {
                 ++entityIndex;
                 continue;
@@ -1746,20 +1777,21 @@ void Renderer::createCommandBuffers() {
 
             const bbl::MeshGPUResources* meshRes = GPUresources->getMeshResources(renderComp->meshResourceID);
             if (!meshRes) {
+                qDebug() << "WARNING: Entity" << entity << "has no mesh resources! (meshResourceID:"
+                         << renderComp->meshResourceID << ")";
                 ++entityIndex;
                 continue;
             }
 
             uint32_t dynamicOffset = static_cast<uint32_t>(entityIndex * alignedUniformSize);
 
-            bool isTraceLine = entityManager->hasComponent<bbl::Tracking>(entity);
-
-            // Velg pipeline basert på entity type
-            if (isTraceLine) {
-                vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, linePipeline);
-            } else if (renderComp->usePhong == true) {
+            // Bind appropriate pipeline
+            if (renderComp->usePhong) {
                 vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, phongPipeline);
-            } else {
+            }
+            else if (renderComp->isLine) {
+                vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, linePipeline);}
+            else {
                 vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
             }
 
@@ -1767,30 +1799,28 @@ void Renderer::createCommandBuffers() {
             vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS,
                                     pipelineLayout, 0, 1, &descriptorSet, 1, &dynamicOffset);
 
-            // Only draw if visible
             if (renderComp->visible) {
-                // Bind mesh buffers
                 VkBuffer vertexBuffers[] = {meshRes->vertexBuffer};
                 VkDeviceSize offsets[] = {0};
                 vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
                 vkCmdBindIndexBuffer(commandBuffers[i], meshRes->indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-                // Draw the mesh
                 vkCmdDrawIndexed(commandBuffers[i],
                                  static_cast<uint32_t>(meshRes->indexCount),
                                  1, 0, 0, 0);
+
+                if (renderComp->isLine) {
+                    qDebug() << "Drew line with" << meshRes->indexCount << "indices";
+                }
             }
 
-            ++entityIndex; // Always increment for consistent indexing
+            ++entityIndex;
         }
-
         vkCmdEndRenderPass(commandBuffers[i]);
 
         if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS)
             throw std::runtime_error("failed to record command buffer!");
     }
 }
-
 
 void Renderer::createSyncObjects()
 {

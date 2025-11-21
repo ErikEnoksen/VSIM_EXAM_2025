@@ -22,6 +22,7 @@ void TrackingSystem::update(float dt)
     std::vector<EntityID> trackingEntities =
         m_entityManager->getEntitiesWith<Tracking, Transform>();
 
+    qDebug() << "TrackingSystem::update - Found" << trackingEntities.size() << "tracking entities";
     for (EntityID entity : trackingEntities) {
         Tracking* tracking = m_entityManager->getComponent<Tracking>(entity);
         Transform* transform = m_entityManager->getComponent<Transform>(entity);
@@ -37,6 +38,7 @@ void TrackingSystem::update(float dt)
         if (tracking->controlPoints.size() >= 2) {
             updateTraceMesh(entity, tracking);
         }
+
     }
 }
 
@@ -124,17 +126,15 @@ void TrackingSystem::updateTraceMesh(EntityID entity, Tracking* tracking)
         return;
     }
 
-    // Finn eller lag trace entity knyttet til denne ballen
+    // Find or create trace entity
     EntityID traceEntity = INVALID_ENTITY;
-
     auto it = m_traceEntities.find(entity);
-    if (it == m_traceEntities.end()) {
 
-        // Lag ny trace entity første gang
+    if (it == m_traceEntities.end()) {
+        // Create new trace entity (first time only)
         traceEntity = m_entityManager->createEntity();
         m_traceEntities[entity] = traceEntity;
 
-        // Legg til Transform (identitet – trace tegnes i world space)
         Transform traceTransform;
         traceTransform.position = glm::vec3(0.0f);
         m_entityManager->addComponent(traceEntity, traceTransform);
@@ -144,63 +144,66 @@ void TrackingSystem::updateTraceMesh(EntityID entity, Tracking* tracking)
         traceEntity = it->second;
     }
 
-    // Lag mesh-data fra kontrollpunktene P_k
+    // Build mesh data
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
 
-    /*
-     * Oppgave 2.5: Line strip mesh
-     *
-     * Vi bruker hvert kontrollpunkt P_k som en vertex i et line strip.
-     * GPU-en tegner så rette linjer mellom P_k og P_{k+1}.
-     */
     for (size_t i = 0; i < tracking->controlPoints.size(); ++i) {
         Vertex v;
-        v.pos      = tracking->controlPoints[i];         // P_k = (x_k, y_k, z_k)
-        v.color    = glm::vec3(1.0f, 0.0f, 0.0f);        // rød linje for trace
+        v.pos = tracking->controlPoints[i];
+        v.color = glm::vec3(1.0f, 0.0f, 0.0f);  // Red
         v.texCoord = glm::vec2(0.0f);
         vertices.push_back(v);
 
-        // Lag line-indekser mellom P_i og P_{i+1}
         if (i < tracking->controlPoints.size() - 1) {
             indices.push_back(static_cast<uint32_t>(i));
             indices.push_back(static_cast<uint32_t>(i + 1));
         }
     }
 
-    // Upload mesh til GPU slik at vi kan tegne linjen i Vulkan
-    if (!vertices.empty() && !indices.empty()) {
+    if (vertices.empty() || indices.empty()) {
+        return;
+    }
 
-        MeshData meshData;
-        meshData.vertices = vertices;
-        meshData.indices  = indices;
+    // Check if mesh already exists
+    Mesh* meshComp = m_entityManager->getComponent<Mesh>(traceEntity);
 
-        size_t meshResourceID = m_gpuResources->uploadMesh(meshData);
+    if (meshComp && meshComp->meshResourceID != 0) {
+        // Release old mesh before uploading new one
+        m_gpuResources->releaseMeshResources(meshComp->meshResourceID);
+    }
 
-        // Oppdater eller legg til Mesh-komponent
-        Mesh* meshComp = m_entityManager->getComponent<Mesh>(traceEntity);
-        if (meshComp) {
-            meshComp->meshResourceID = meshResourceID;
-        } else {
-            Mesh newMesh;
-            newMesh.meshResourceID = meshResourceID;
-            m_entityManager->addComponent(traceEntity, newMesh);
-        }
+    // Upload new mesh
+    MeshData meshData;
+    meshData.vertices = vertices;
+    meshData.indices = indices;
+    size_t meshResourceID = m_gpuResources->uploadMesh(meshData);
 
-        // Oppdater eller legg til Render-komponent
-        Render* renderComp = m_entityManager->getComponent<Render>(traceEntity);
-        if (renderComp) {
-            renderComp->meshResourceID = meshResourceID;
-            renderComp->visible        = true;
-            renderComp->usePhong       = false;  // enkel linje-shader
-            renderComp->isLine         = true;
-        } else {
-            Render newRender;
-            newRender.meshResourceID = meshResourceID;
-            newRender.visible        = true;
-            newRender.usePhong       = false;
-            newRender.isLine         = true;
-            m_entityManager->addComponent(traceEntity, newRender);
-        }
+    qDebug() << "Updated trace mesh - vertices:" << vertices.size()
+             << "indices:" << indices.size() << "ID:" << meshResourceID;
+
+    // Update or add Mesh component
+    if (meshComp) {
+        meshComp->meshResourceID = meshResourceID;
+    } else {
+        Mesh newMesh;
+        newMesh.meshResourceID = meshResourceID;
+        m_entityManager->addComponent(traceEntity, newMesh);
+    }
+
+    // Update or add Render component
+    Render* renderComp = m_entityManager->getComponent<Render>(traceEntity);
+    if (renderComp) {
+        renderComp->meshResourceID = meshResourceID;
+        renderComp->visible = true;
+        renderComp->usePhong = false;
+        renderComp->isLine = true;
+    } else {
+        Render newRender;
+        newRender.meshResourceID = meshResourceID;
+        newRender.visible = true;
+        newRender.usePhong = false;
+        newRender.isLine = true;
+        m_entityManager->addComponent(traceEntity, newRender);
     }
 }

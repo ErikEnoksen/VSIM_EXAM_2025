@@ -204,7 +204,7 @@
         void createImageViews();
         void createRenderPass();
         void createDescriptorSetLayout();
-        void createGraphicsPipeline(std::string, std::string, VkPipeline&);
+        void createGraphicsPipeline(std::string vertPath, std::string fragPath, VkPipeline& Pipeline, VkPrimitiveTopology topology,float lineWidth);
         void createFramebuffers();
         void createCommandPool();
         void createColorResources();
