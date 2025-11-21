@@ -1,5 +1,6 @@
     #include "GameWorld.h"
 #include "../Editor/MainWindow.h"
+#include "../Core/Renderer.h"
 
 bbl::GameWorld::GameWorld()
 {
@@ -51,12 +52,14 @@ void bbl::GameWorld::Setup()
 
 }
 
-void bbl::GameWorld::initializeSystems(EntityManager* entityManager, GPUResourceManager* gpuResources)
+void bbl::GameWorld::initializeSystems(EntityManager* entityManager, GPUResourceManager* gpuResources,Renderer* renderer)
 {
     if (!entityManager) {
         qWarning() << "Cannot initialize systems: EntityManager is null!";
         return;
     }
+
+     m_renderer = renderer;
 
     // Physics System
     m_physicsSystem = std::make_unique<PhysicsSystem>(entityManager, m_terrain.get());
@@ -91,6 +94,7 @@ void bbl::GameWorld::update(float dt)
 
     if (m_trackingSystem) {
         m_trackingSystem->update(dt);
+        m_renderer->recreateSwapChain();
     }
 
 }

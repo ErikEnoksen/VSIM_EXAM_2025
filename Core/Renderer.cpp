@@ -108,7 +108,7 @@ void Renderer::initVulkan() {
 
     // Initialize GameWorld and load terrain
     m_gameWorld.Setup();
-    m_gameWorld.initializeSystems(entityManager.get(), GPUresources.get());
+    m_gameWorld.initializeSystems(entityManager.get(), GPUresources.get(), this);
 
     // Create ModelLoader instance
     bbl::ModelLoader modelLoader;

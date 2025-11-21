@@ -9,6 +9,8 @@
 #include "../Core/Utility/gpuresourcemanager.h"
 #include <memory>
 
+class Renderer;
+
 namespace bbl
 {
 
@@ -31,7 +33,7 @@ public:
         }
     }
 
-    void initializeSystems(EntityManager* entityManager, GPUResourceManager* gpuResources);
+    void initializeSystems(EntityManager* entityManager, GPUResourceManager* gpuResources, Renderer* renderer);
 
 
 private:
@@ -40,6 +42,7 @@ private:
     std::unique_ptr<CollisionSystem> m_collisionSystem;
     std::unique_ptr<bbl::TrackingSystem> m_trackingSystem;
 
+    Renderer* m_renderer = nullptr;
     bool m_paused = true;
     bool m_terrainLoaded{false};
 };
