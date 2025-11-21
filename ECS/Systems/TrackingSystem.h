@@ -17,7 +17,7 @@ public:
     bool isEnabled() const { return m_enabled; }
 
 private:
-    void samplePosition(EntityID entity, Transform* transform, Tracking* tracking, float dt);
+    bool samplePosition(EntityID entity, Transform* transform, Tracking* tracking, float dt);  // Changed to bool
     void updateTraceMesh(EntityID entity, Tracking* tracking);
 
     EntityManager* m_entityManager = nullptr;

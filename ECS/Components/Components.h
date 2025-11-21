@@ -110,9 +110,13 @@ struct Tracking
     // t_k = k * Δt,  der Δt = sampleInterval
     std::vector<glm::vec3> controlPoints;
 
+    // Circular buffer management
+    size_t startIndex = 0;           // Where the "oldest" point is
+    size_t currentCount = 0;         // How many points are actually in use
+
     // Fast tidssteg Δt mellom hver sampling (i sekunder)
     // t_{k+1} = t_k + Δt
-    float sampleInterval = 0.1f;
+    float sampleInterval = .2f;
 
     // Akkumulerer tid siden siste sampling:
     // timeSinceLastSample = Σ Δt_frame

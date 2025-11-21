@@ -322,19 +322,10 @@
 
             //Oppgave 2.5: Tracking-komponent på ballen
             bbl::Tracking trackingComp;
-            trackingComp.sampleInterval = 0.1f;   // Δt = 0.1 s (kan endres til f.eks. 0.5f)
-            trackingComp.maxPoints      = 200;    // Maks antall kontrollpunkter P_k
             trackingComp.enabled        = true;
             entityManager->addComponent(ballEntity, trackingComp);
             bbl::Tracking* verifyTracking = entityManager->getComponent<bbl::Tracking>(ballEntity);
-            if (verifyTracking) {
-                qDebug() << "✓ Tracking component successfully added to ball entity" << ballEntity;
-                qDebug() << "  - sampleInterval:" << verifyTracking->sampleInterval;
-                qDebug() << "  - maxPoints:" << verifyTracking->maxPoints;
-                qDebug() << "  - enabled:" << verifyTracking->enabled;
-            } else {
-                qDebug() << "✗ ERROR: Tracking component NOT found on ball!";
-            }
+
 
             if (sceneManager) {
                 sceneManager->setEntityName(ballEntity, "Ball");

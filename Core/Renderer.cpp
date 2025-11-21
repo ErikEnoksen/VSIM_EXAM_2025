@@ -1807,10 +1807,6 @@ void Renderer::createCommandBuffers() {
                 vkCmdDrawIndexed(commandBuffers[i],
                                  static_cast<uint32_t>(meshRes->indexCount),
                                  1, 0, 0, 0);
-
-                if (renderComp->isLine) {
-                    qDebug() << "Drew line with" << meshRes->indexCount << "indices";
-                }
             }
 
             ++entityIndex;

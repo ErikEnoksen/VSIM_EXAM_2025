@@ -22,7 +22,6 @@ void TrackingSystem::update(float dt)
     std::vector<EntityID> trackingEntities =
         m_entityManager->getEntitiesWith<Tracking, Transform>();
 
-    qDebug() << "TrackingSystem::update - Found" << trackingEntities.size() << "tracking entities";
     for (EntityID entity : trackingEntities) {
         Tracking* tracking = m_entityManager->getComponent<Tracking>(entity);
         Transform* transform = m_entityManager->getComponent<Transform>(entity);
@@ -31,18 +30,20 @@ void TrackingSystem::update(float dt)
             continue;
         }
 
-        // Sample posisjon ved faste intervaller
-        samplePosition(entity, transform, tracking, dt);
+        // Sjekk om vi faktisk samplet et nytt punkt
+        bool sampledNewPoint = false;
 
-        // Oppdater mesh hvis vi har nok punkter
-        if (tracking->controlPoints.size() >= 2) {
+        // Sample posisjon ved faste intervaller
+        sampledNewPoint = samplePosition(entity, transform, tracking, dt);
+
+        // Oppdater mesh kun hvis vi samplet et nytt punkt OG har nok punkter
+        if (sampledNewPoint && tracking->controlPoints.size() >= 2) {
             updateTraceMesh(entity, tracking);
         }
-
     }
 }
 
-void TrackingSystem::samplePosition(EntityID entity,Transform* transform,Tracking* tracking,float dt)
+bool TrackingSystem::samplePosition(EntityID entity, Transform* transform, Tracking* tracking, float dt)
 {
     /*
      * Oppgave 2.5: "Sampling positions for fixed time intervals"
@@ -60,6 +61,7 @@ void TrackingSystem::samplePosition(EntityID entity,Transform* transform,Trackin
 
     tracking->timeSinceLastSample += dt;   // dt = tidssteg per frame
 
+    // Only sample when we reach the interval
     if (tracking->timeSinceLastSample >= tracking->sampleInterval) {
         // Vi har nå passert neste t_k
         tracking->timeSinceLastSample = 0.0f;
@@ -73,14 +75,13 @@ void TrackingSystem::samplePosition(EntityID entity,Transform* transform,Trackin
             tracking->controlPoints.erase(tracking->controlPoints.begin());
         }
 
-        qDebug() << "Sampled position:"
-                 << transform->position.x
-                 << transform->position.y
-                 << transform->position.z
-                 << "Total points:" << tracking->controlPoints.size();
+        // Return true - vi samplet et nytt punkt
+        return true;
     }
-}
 
+    // If interval not reached, just return without adding a point!
+    return false;
+}
 
 void TrackingSystem::updateTraceMesh(EntityID entity, Tracking* tracking)
 {
@@ -126,35 +127,41 @@ void TrackingSystem::updateTraceMesh(EntityID entity, Tracking* tracking)
         return;
     }
 
-    // Find or create trace entity
+    // Finn eller lag trace entity knyttet til denne ballen
     EntityID traceEntity = INVALID_ENTITY;
     auto it = m_traceEntities.find(entity);
 
     if (it == m_traceEntities.end()) {
-        // Create new trace entity (first time only)
+        // Lag ny trace entity første gang
         traceEntity = m_entityManager->createEntity();
         m_traceEntities[entity] = traceEntity;
 
+        // Legg til Transform (identitet – trace tegnes i world space)
         Transform traceTransform;
         traceTransform.position = glm::vec3(0.0f);
         m_entityManager->addComponent(traceEntity, traceTransform);
-
-        qInfo() << "Created trace entity" << traceEntity << "for entity" << entity;
     } else {
         traceEntity = it->second;
     }
 
-    // Build mesh data
+    // Lag mesh-data fra kontrollpunktene P_k
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
 
+    /*
+     * Oppgave 2.5: Line strip mesh
+     *
+     * Vi bruker hvert kontrollpunkt P_k som en vertex i et line strip.
+     * GPU-en tegner så rette linjer mellom P_k og P_{k+1}.
+     */
     for (size_t i = 0; i < tracking->controlPoints.size(); ++i) {
         Vertex v;
-        v.pos = tracking->controlPoints[i];
-        v.color = glm::vec3(1.0f, 0.0f, 0.0f);  // Red
+        v.pos      = tracking->controlPoints[i];         // P_k = (x_k, y_k, z_k)
+        v.color    = glm::vec3(1.0f, 0.0f, 0.0f);        // rød linje for trace
         v.texCoord = glm::vec2(0.0f);
         vertices.push_back(v);
 
+        // Lag line-indekser mellom P_i og P_{i+1}
         if (i < tracking->controlPoints.size() - 1) {
             indices.push_back(static_cast<uint32_t>(i));
             indices.push_back(static_cast<uint32_t>(i + 1));
@@ -165,24 +172,21 @@ void TrackingSystem::updateTraceMesh(EntityID entity, Tracking* tracking)
         return;
     }
 
-    // Check if mesh already exists
+    // Sjekk om mesh allerede eksisterer
     Mesh* meshComp = m_entityManager->getComponent<Mesh>(traceEntity);
 
     if (meshComp && meshComp->meshResourceID != 0) {
-        // Release old mesh before uploading new one
+        // Frigjør gammel mesh før vi laster opp ny
         m_gpuResources->releaseMeshResources(meshComp->meshResourceID);
     }
 
-    // Upload new mesh
+    // Upload mesh til GPU slik at vi kan tegne linjen i Vulkan
     MeshData meshData;
     meshData.vertices = vertices;
-    meshData.indices = indices;
+    meshData.indices  = indices;
     size_t meshResourceID = m_gpuResources->uploadMesh(meshData);
 
-    qDebug() << "Updated trace mesh - vertices:" << vertices.size()
-             << "indices:" << indices.size() << "ID:" << meshResourceID;
-
-    // Update or add Mesh component
+    // Oppdater eller legg til Mesh-komponent
     if (meshComp) {
         meshComp->meshResourceID = meshResourceID;
     } else {
@@ -191,19 +195,19 @@ void TrackingSystem::updateTraceMesh(EntityID entity, Tracking* tracking)
         m_entityManager->addComponent(traceEntity, newMesh);
     }
 
-    // Update or add Render component
+    // Oppdater eller legg til Render-komponent
     Render* renderComp = m_entityManager->getComponent<Render>(traceEntity);
     if (renderComp) {
         renderComp->meshResourceID = meshResourceID;
-        renderComp->visible = true;
-        renderComp->usePhong = false;
-        renderComp->isLine = true;
+        renderComp->visible        = true;
+        renderComp->usePhong       = false;
+        renderComp->isLine         = true;
     } else {
         Render newRender;
         newRender.meshResourceID = meshResourceID;
-        newRender.visible = true;
-        newRender.usePhong = false;
-        newRender.isLine = true;
+        newRender.visible        = true;
+        newRender.usePhong       = false;
+        newRender.isLine         = true;
         m_entityManager->addComponent(traceEntity, newRender);
     }
 }
