@@ -5,6 +5,7 @@
     #include "../Core/Renderer.h"
     #include "../Core/Utility/BblHub.h"
     #include "../Game/GameWorld.h"
+    #include "../ECS/Systems/TrackingSystem.h"
 
     #include <QFileDialog>
     #include <QApplication>
@@ -454,6 +455,7 @@
             QVariantMap renderFields;
             renderFields["Visible"] = render->visible;
             renderFields["Use Phong"] = render->usePhong;
+            renderFields["Is Line"] = render->isLine;
             addComponentUI("Render Component", renderFields);
             componentCount++;
 
@@ -501,6 +503,16 @@
             collisionFields["Is Grounded"] = collision->isGrounded;
             collisionFields["Is Trigger"] = collision->isTrigger;
             addComponentUI("Collision Component", collisionFields);
+        }
+        if (entityManager->hasComponent<bbl::Tracking>(selectedEntityID))
+        {
+            const auto& tracking = entityManager->getComponent<bbl::Tracking>(selectedEntityID);
+            QVariantMap trackingFields;
+            trackingFields["Enabled"] = tracking->enabled;
+            trackingFields["Sample Interval"] = static_cast<double>(tracking->sampleInterval);
+            trackingFields["Max Points"] = tracking->maxPoints;
+            trackingFields["Current Points"] = static_cast<int>(tracking->controlPoints.size());
+            addComponentUI("Tracking Component", trackingFields);
         }
 
         // THIS IS A TEMPLATE OF HOW TO ADD MORE CHECKS
@@ -577,30 +589,31 @@
                 checkBox->setChecked(it.value().toBool());
                 editor = checkBox;
 
-                // Live update for physics
+                // Live update for Physics
                 if (name.contains("Physics"))
                 {
                     QString field = it.key();
                     connect(checkBox, &QCheckBox::toggled, this, [=](bool val)
-                    {
-                        auto selected = mVulkanWindow->getSelectedEntity();
-                        if (!selected.has_value()) return;
-                        bbl::EntityID entityID = selected.value();
+                            {
+                                auto selected = mVulkanWindow->getSelectedEntity();
+                                if (!selected.has_value()) return;
+                                bbl::EntityID entityID = selected.value();
 
-                        auto* em = mVulkanWindow->getEntityManager();
-                        if (!em) return;
+                                auto* em = mVulkanWindow->getEntityManager();
+                                if (!em) return;
 
-                        auto* phys = em->getComponent<bbl::Physics>(entityID);
-                        if (!phys) {return;}
+                                auto* phys = em->getComponent<bbl::Physics>(entityID);
+                                if (!phys) return;
 
-                        if (field == "Use Gravity")
-                        {
-                            phys->useGravity = val;
-                        }
-                        mVulkanWindow->requestUpdate();
-                    });
+                                if (field == "Use Gravity")
+                                {
+                                    phys->useGravity = val;
+                                }
+                                mVulkanWindow->requestUpdate();
+                            });
                 }
 
+                // Live update for Render
                 if (name.contains("Render"))
                 {
                     QString field = it.key();
@@ -614,7 +627,7 @@
                                 if (!em) return;
 
                                 auto* render = em->getComponent<bbl::Render>(entityID);
-                                if (!render) {return;}
+                                if (!render) return;
 
                                 if (field == "Visible")
                                 {
@@ -624,10 +637,40 @@
                                 {
                                     render->usePhong = valid;
                                 }
+                                else if (field == "Is Line")
+                                {
+                                    render->isLine = valid;
+                                }
                                 mVulkanWindow->recreateSwapChain();
                                 mVulkanWindow->requestUpdate();
                             });
                 }
+
+                // Live update for Tracking
+                if (name.contains("Tracking"))
+                {
+                    QString field = it.key();
+                    connect(checkBox, &QCheckBox::toggled, this, [=](bool val)
+                            {
+                                auto selected = mVulkanWindow->getSelectedEntity();
+                                if (!selected.has_value()) return;
+                                bbl::EntityID entityID = selected.value();
+
+                                auto* em = mVulkanWindow->getEntityManager();
+                                if (!em) return;
+
+                                auto* tracking = em->getComponent<bbl::Tracking>(entityID);
+                                if (!tracking) return;
+
+                                if (field == "Enabled")
+                                {
+                                    tracking->enabled = val;
+                                    qInfo() << "Tracking" << (val ? "enabled" : "disabled") << "for entity" << entityID;
+                                }
+                                mVulkanWindow->requestUpdate();
+                            });
+                }
+
                 break;
             }
 
@@ -640,76 +683,146 @@
                 spinBox->setDecimals(3);
                 editor = spinBox;
 
+                // Live update for Transform
                 if (name.contains("Transform"))
                 {
                     QString field = it.key();
-                    connect(spinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [=](double val){
-                        auto selected = mVulkanWindow->getSelectedEntity();
-                        if (!selected.has_value()) return;
-                        bbl::EntityID entityID = selected.value();
+                    connect(spinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [=](double val)
+                            {
+                                auto selected = mVulkanWindow->getSelectedEntity();
+                                if (!selected.has_value()) return;
+                                bbl::EntityID entityID = selected.value();
 
-                        auto* em = mVulkanWindow->getEntityManager();
-                        if (!em) return;
+                                auto* em = mVulkanWindow->getEntityManager();
+                                if (!em) return;
 
-                        auto* transform = em->getComponent<bbl::Transform>(entityID);
-                        if (!transform) return;
+                                auto* transform = em->getComponent<bbl::Transform>(entityID);
+                                if (!transform) return;
 
-                        if (field.contains("Position"))
-                        {
-                            if (field.endsWith("X")) transform->position.x = val;
-                            else if (field.endsWith("Y")) transform->position.y = val;
-                            else if (field.endsWith("Z")) transform->position.z = val;
-                        }
-                        else if (field.contains("Rotation"))
-                        {
-                            if (field.endsWith("X")) transform->rotation.x = val;
-                            else if (field.endsWith("Y")) transform->rotation.y = val;
-                            else if (field.endsWith("Z")) transform->rotation.z = val;
-                        }
-                        else if (field.contains("Scale"))
-                        {
-                            if (field.endsWith("X")) transform->scale.x = val;
-                            else if (field.endsWith("Y")) transform->scale.y = val;
-                            else if (field.endsWith("Z")) transform->scale.z = val;
-                        }
+                                if (field.contains("Position"))
+                                {
+                                    if (field.endsWith("X")) transform->position.x = val;
+                                    else if (field.endsWith("Y")) transform->position.y = val;
+                                    else if (field.endsWith("Z")) transform->position.z = val;
+                                }
+                                else if (field.contains("Rotation"))
+                                {
+                                    if (field.endsWith("X")) transform->rotation.x = val;
+                                    else if (field.endsWith("Y")) transform->rotation.y = val;
+                                    else if (field.endsWith("Z")) transform->rotation.z = val;
+                                }
+                                else if (field.contains("Scale"))
+                                {
+                                    if (field.endsWith("X")) transform->scale.x = val;
+                                    else if (field.endsWith("Y")) transform->scale.y = val;
+                                    else if (field.endsWith("Z")) transform->scale.z = val;
+                                }
 
-                        mVulkanWindow->requestUpdate();
-                    });
+                                mVulkanWindow->requestUpdate();
+                            });
                 }
 
+                // Live update for Tracking
+                if (name.contains("Tracking"))
+                {
+                    QString field = it.key();
+                    connect(spinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [=](double val)
+                            {
+                                auto selected = mVulkanWindow->getSelectedEntity();
+                                if (!selected.has_value()) return;
+                                bbl::EntityID entityID = selected.value();
+
+                                auto* em = mVulkanWindow->getEntityManager();
+                                if (!em) return;
+
+                                auto* tracking = em->getComponent<bbl::Tracking>(entityID);
+                                if (!tracking) return;
+
+                                if (field == "Sample Interval")
+                                {
+                                    tracking->sampleInterval = static_cast<float>(val);
+                                    qInfo() << "Sample interval updated to" << val << "seconds";
+                                }
+                                mVulkanWindow->requestUpdate();
+                            });
+                }
+
+                // Live update for Physics
                 if (name.contains("Physics"))
                 {
                     QString field = it.key();
                     connect(spinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [=](double val)
-                    {
-                        auto selected = mVulkanWindow->getSelectedEntity();
-                        if (!selected.has_value()) {return;}
-                        bbl::EntityID entityID = selected.value();
-
-                        auto* em = mVulkanWindow->getEntityManager();
-                        if (!em) {return;}
-
-                        auto* phys = em->getComponent<bbl::Physics>(entityID);
-                        if(!phys) {return;}
-
-                        if (field.contains("Velocity"))
-                        {
-                            if (field.endsWith("X")) phys->velocity.x = val;
-                            else if (field.endsWith("Y")) phys->velocity.y = val;
-                            else if (field.endsWith("Z")) phys->velocity.z = val;
-                        }
-                        else if (field.contains("Acceleration"))
-                        {
-                            if(field.endsWith("X")) phys->acceleration.x = val;
-                            else if (field.endsWith("Y")) phys->acceleration.y = val;
-                            else if (field.endsWith("Z")) phys->acceleration.z = val;
-                        }
-                        else if(field == "Mass")
                             {
-                            phys->mass = val;
-                        }
-                        mVulkanWindow->requestUpdate();
-                    });
+                                auto selected = mVulkanWindow->getSelectedEntity();
+                                if (!selected.has_value()) return;
+                                bbl::EntityID entityID = selected.value();
+
+                                auto* em = mVulkanWindow->getEntityManager();
+                                if (!em) return;
+
+                                auto* phys = em->getComponent<bbl::Physics>(entityID);
+                                if (!phys) return;
+
+                                if (field.contains("Velocity"))
+                                {
+                                    if (field.endsWith("X")) phys->velocity.x = val;
+                                    else if (field.endsWith("Y")) phys->velocity.y = val;
+                                    else if (field.endsWith("Z")) phys->velocity.z = val;
+                                }
+                                else if (field.contains("Acceleration"))
+                                {
+                                    if (field.endsWith("X")) phys->acceleration.x = val;
+                                    else if (field.endsWith("Y")) phys->acceleration.y = val;
+                                    else if (field.endsWith("Z")) phys->acceleration.z = val;
+                                }
+                                else if (field == "Mass")
+                                {
+                                    phys->mass = val;
+                                }
+                                mVulkanWindow->requestUpdate();
+                            });
+                }
+
+                break;
+            }
+
+            case QMetaType::Int:
+            {
+                auto* spinBox = new QSpinBox();
+                spinBox->setRange(1, 10000);
+                spinBox->setValue(it.value().toInt());
+                editor = spinBox;
+
+                // Live update for Tracking
+                if (name.contains("Tracking"))
+                {
+                    QString field = it.key();
+
+                    // Make "Current Points" read-only
+                    if (field == "Current Points")
+                    {
+                        spinBox->setReadOnly(true);
+                        spinBox->setButtonSymbols(QAbstractSpinBox::NoButtons);
+                    }
+                    else if (field == "Max Points")
+                    {
+                        connect(spinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [=](int val)
+                                {
+                                    auto selected = mVulkanWindow->getSelectedEntity();
+                                    if (!selected.has_value()) return;
+                                    bbl::EntityID entityID = selected.value();
+
+                                    auto* em = mVulkanWindow->getEntityManager();
+                                    if (!em) return;
+
+                                    auto* tracking = em->getComponent<bbl::Tracking>(entityID);
+                                    if (!tracking) return;
+
+                                    tracking->maxPoints = val;
+                                    qInfo() << "Max points updated to" << val;
+                                    mVulkanWindow->requestUpdate();
+                                });
+                    }
                 }
                 break;
             }
@@ -719,21 +832,21 @@
                 auto* lineEdit = new QLineEdit(it.value().toString());
                 editor = lineEdit;
 
-                if(name.contains("Audio"))
+                // Live update for Audio
+                if (name.contains("Audio"))
                 {
                     QString field = it.key();
-
                     connect(lineEdit, &QLineEdit::editingFinished, this, [=]()
                             {
                                 auto selected = mVulkanWindow->getSelectedEntity();
-                                if(!selected.has_value()) {return;}
+                                if (!selected.has_value()) return;
                                 bbl::EntityID entityID = selected.value();
 
                                 auto* em = mVulkanWindow->getEntityManager();
-                                if(!em) {return;}
+                                if (!em) return;
 
                                 auto* audio = em->getComponent<bbl::Audio>(entityID);
-                                if (!audio) {return;}
+                                if (!audio) return;
 
                                 QString value = lineEdit->text();
 
@@ -755,21 +868,20 @@
                 break;
             }
 
-        }
+            }
 
             formLayout->addRow(it.key() + ":", editor);
         }
+
         QVBoxLayout* groupLayout = new QVBoxLayout();
         groupLayout->addWidget(innerWidget);
         group->setLayout(groupLayout);
 
-        //Show/hide when clicked
+        // Show/hide when clicked
         connect(group, &QGroupBox::toggled, innerWidget, &QWidget::setVisible);
 
         componentLayout->addWidget(group);
     }
-
-
 
     //=============================================================================
     // Logger

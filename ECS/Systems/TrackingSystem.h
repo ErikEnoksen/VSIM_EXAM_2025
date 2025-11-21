@@ -16,6 +16,9 @@ public:
     void setEnabled(bool enabled) { m_enabled = enabled; }
     bool isEnabled() const { return m_enabled; }
 
+    bool didUpdateMesh() const { return m_didUpdateMesh; }
+    void clearUpdateFlag() { m_didUpdateMesh = false; }
+
 private:
     bool samplePosition(EntityID entity, Transform* transform, Tracking* tracking, float dt);  // Changed to bool
     void updateTraceMesh(EntityID entity, Tracking* tracking);
@@ -23,9 +26,9 @@ private:
     EntityManager* m_entityManager = nullptr;
     GPUResourceManager* m_gpuResources = nullptr;
     bool m_enabled = true;
-
-    // Map: tracked entity → trace entity
+    bool m_didUpdateMesh = false;
     std::unordered_map<EntityID, EntityID> m_traceEntities;
+
 };
 }
 

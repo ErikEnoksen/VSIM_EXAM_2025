@@ -94,7 +94,10 @@ void bbl::GameWorld::update(float dt)
 
     if (m_trackingSystem) {
         m_trackingSystem->update(dt);
-        m_renderer->recreateSwapChain();
+        if (m_trackingSystem->didUpdateMesh()) {
+            m_renderer->recreateSwapChain();
+            m_trackingSystem->clearUpdateFlag();
+        }
     }
 
 }

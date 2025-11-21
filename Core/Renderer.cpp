@@ -164,7 +164,7 @@ bbl::EntityID Renderer::spawnModel(const std::string& modelPath,
         // Add texture if provided and exists in the model
         if (!texturePath.empty()) {
             auto textureResourceID = GPUresources->uploadTexture(texturePath);
-            // ... rest of texture code
+
         }
 
         // Add texture if provided and exists in the model
@@ -178,6 +178,7 @@ bbl::EntityID Renderer::spawnModel(const std::string& modelPath,
             // Update render component with texture
             if (auto* render = entityManager->getComponent<bbl::Render>(newEntity)) {
                 render->textureResourceID = textureResourceID;
+                render->usePhong = true;
             }
         }
 

@@ -210,4 +210,5 @@ void TrackingSystem::updateTraceMesh(EntityID entity, Tracking* tracking)
         newRender.isLine         = true;
         m_entityManager->addComponent(traceEntity, newRender);
     }
+    m_didUpdateMesh = true;
 }
