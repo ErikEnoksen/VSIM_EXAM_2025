@@ -69,7 +69,6 @@ bool TrackingSystem::samplePosition(EntityID entity, Transform* transform, Track
         // Nytt kontrollpunkt P_k = x(t_k) ≈ transform->position
         tracking->controlPoints.push_back(transform->position);
 
-        // Begrens antall lagrede punkter (FIFO):
         // hvis |P_k| > maxPoints, fjern eldste P_0
         if (tracking->controlPoints.size() > static_cast<size_t>(tracking->maxPoints)) {
             tracking->controlPoints.erase(tracking->controlPoints.begin());
@@ -157,7 +156,7 @@ void TrackingSystem::updateTraceMesh(EntityID entity, Tracking* tracking)
     for (size_t i = 0; i < tracking->controlPoints.size(); ++i) {
         Vertex v;
         v.pos      = tracking->controlPoints[i];         // P_k = (x_k, y_k, z_k)
-        v.color    = glm::vec3(1.0f, 0.0f, 0.0f);        // rød linje for trace
+        v.color    = glm::vec3(1.0f, 0.0f, 0.0f);
         v.texCoord = glm::vec2(0.0f);
         vertices.push_back(v);
 

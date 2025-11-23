@@ -29,6 +29,8 @@
     #include <QCheckBox>
     #include <QDoubleSpinBox>
     #include <QLineEdit>
+    #include <QTimer>
+    #include <QLabel>
 
 
     // Static logger widget
@@ -50,6 +52,11 @@
         // Register global references
         BBLHub::Instance().SetMainWindow(this);
         BBLHub::Instance().SetResourceManager(resourceManager);
+
+        QTimer* updateTimer = new QTimer(this);
+        connect(updateTimer, &QTimer::timeout, this, &MainWindow::refreshComponentValues);
+        updateTimer->start(16);
+
 
 
 
@@ -252,6 +259,47 @@
     // Slots & Event Handlers
     //=============================================================================
 
+    //La til for å se velocity real time
+    void MainWindow::refreshComponentValues()
+    {
+        if (!mVulkanWindow) return;
+
+        auto selected = mVulkanWindow->getSelectedEntity();
+        if (!selected.has_value()) return;
+
+        bbl::EntityID entityID = selected.value();
+        auto* em = mVulkanWindow->getEntityManager();
+        if (!em) return;
+
+        // Update Physics values
+        if (auto* phys = em->getComponent<bbl::Physics>(entityID)) {
+            // Find and update spin boxes without triggering signals
+            for (int i = 0; i < componentLayout->count(); ++i) {
+                QGroupBox* group = qobject_cast<QGroupBox*>(componentLayout->itemAt(i)->widget());
+                if (group && group->title().contains("Physics")) {
+                    QFormLayout* form = qobject_cast<QFormLayout*>(group->findChild<QWidget*>()->layout());
+                    if (form) {
+                        for (int j = 0; j < form->rowCount(); ++j) {
+                            QDoubleSpinBox* spin = qobject_cast<QDoubleSpinBox*>(form->itemAt(j, QFormLayout::FieldRole)->widget());
+                            if (spin) {
+                                QString label = qobject_cast<QLabel*>(form->itemAt(j, QFormLayout::LabelRole)->widget())->text();
+                                label.remove(":");
+
+                                spin->blockSignals(true);
+                                if (label == "Velocity X") spin->setValue(phys->velocity.x);
+                                else if (label == "Velocity Y") spin->setValue(phys->velocity.y);
+                                else if (label == "Velocity Z") spin->setValue(phys->velocity.z);
+                                else if (label == "Acceleration X") spin->setValue(phys->acceleration.x);
+                                else if (label == "Acceleration Y") spin->setValue(phys->acceleration.y);
+                                else if (label == "Acceleration Z") spin->setValue(phys->acceleration.z);
+                                spin->blockSignals(false);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     void MainWindow::start()
     {
         qDebug("Start is called");
@@ -290,61 +338,121 @@
     //     updateSceneObjectList();
     // }
 
-    void MainWindow::onButton1Clicked()
-    {
-    /*
-     * Oppgave 2.1: Spawn ball med Physics for terreng-simulering
-     */
-        bbl::EntityID ballEntity = mVulkanWindow->spawnModel(
-            "../../Assets/Models/Ball2.obj",
-            "../../Assets/Textures/ball.jpg",
-            glm::vec3(76.0f, 42.0f, 0.0f)
-            );
+    // void MainWindow::onButton1Clicked()
+    // {
+    // /*
+    //  * Oppgave 2.1: Spawn ball med Physics for terreng-simulering
+    //  */
 
-        auto* entityManager = mVulkanWindow->getEntityManager();
-        auto* sceneManager = mVulkanWindow->getSceneManager();
-        bbl::Render* render = entityManager->getComponent<bbl::Render>(ballEntity);
+    //     bbl::EntityID ballEntity = mVulkanWindow->spawnModel(
+    //         "../../Assets/Models/Ball2.obj",
+    //         "../../Assets/Textures/ball.jpg",
+    //         glm::vec3(76.0f, 42.0f, 0.0f));
 
-        if (entityManager && ballEntity != bbl::INVALID_ENTITY) {
-        /*
-         * Legg til Physics component
-         * useGravity = true aktiverer algoritme 9.6 og formel 9.14
-         */
-            bbl::Physics physicsComp;
-            physicsComp.useGravity = true;
-            entityManager->addComponent(ballEntity, physicsComp);
+    //     auto* entityManager = mVulkanWindow->getEntityManager();
+    //     auto* sceneManager = mVulkanWindow->getSceneManager();
+    //     bbl::Render* render = entityManager->getComponent<bbl::Render>(ballEntity);
 
-        /*
-         * Legg til Collision componentDDSDWSA
-         */
-            bbl::Collision collisionComp;
-            collisionComp.colliderSize = glm::vec3(2.0f);
-            entityManager->addComponent(ballEntity, collisionComp);
+    //     if (entityManager && ballEntity != bbl::INVALID_ENTITY) {
+    //     /*
+    //      * Legg til Physics component
+    //      * useGravity = true aktiverer algoritme 9.6 og formel 9.14
+    //      */
+    //         bbl::Physics physicsComp;
+    //         physicsComp.useGravity = true;
+    //         entityManager->addComponent(ballEntity, physicsComp);
 
-            //Oppgave 2.5: Tracking-komponent på ballen
-            bbl::Tracking trackingComp;
-            trackingComp.enabled        = true;
-            entityManager->addComponent(ballEntity, trackingComp);
-            bbl::Tracking* verifyTracking = entityManager->getComponent<bbl::Tracking>(ballEntity);
+    //     /*
+    //      * Legg til Collision componentDDSDWSA
+    //      */
+    //         bbl::Collision collisionComp;
+    //         collisionComp.colliderSize = glm::vec3(2.0f);
+    //         entityManager->addComponent(ballEntity, collisionComp);
+
+    //         //Oppgave 2.5: Tracking-komponent på ballen
+    //         bbl::Tracking trackingComp;
+    //         trackingComp.enabled        = true;
+    //         entityManager->addComponent(ballEntity, trackingComp);
+    //         bbl::Tracking* verifyTracking = entityManager->getComponent<bbl::Tracking>(ballEntity);
 
 
-            if (sceneManager) {
-                sceneManager->setEntityName(ballEntity, "Ball");
-                sceneManager->markSceneDirty();
+    //         if (sceneManager) {
+    //             sceneManager->setEntityName(ballEntity, "Ball");
+    //             sceneManager->markSceneDirty();
+    //         }
+
+
+    //         if (render) {
+    //             render->usePhong = true;
+    //         }
+
+    //         qInfo() << "Physics ball spawned!";
+
+    // }
+
+        void MainWindow::onButton1Clicked()
+        {
+            /*
+            * Oppgave 2.6: Fluid simulation - spawner baller med tids intervall
+            */
+            ballSpawnCount = 0;
+
+            if (ballSpawnTimer) {
+                ballSpawnTimer->stop();
+                delete ballSpawnTimer;
             }
 
+            ballSpawnTimer = new QTimer(this);
+            connect(ballSpawnTimer, &QTimer::timeout, this, [=]() {
+                if (ballSpawnCount >= 20) {
+                    ballSpawnTimer->stop();
+                    return;
+                }
 
-            if (render) {
-                render->usePhong = true;
-            }
+                bbl::EntityID ballEntity = mVulkanWindow->spawnModel(
+                    "../../Assets/Models/Ball2.obj",
+                    "../../Assets/Textures/ball.jpg",
+                    glm::vec3(76.0f, 42.0f, 0.0f)
+                    );
 
-            qInfo() << "Physics ball spawned!";
-        }
+                auto* entityManager = mVulkanWindow->getEntityManager();
+                auto* sceneManager = mVulkanWindow->getSceneManager();
 
-        mVulkanWindow->recreateSwapChain();
-        mVulkanWindow->requestUpdate();
-        updateSceneObjectList();
+                if (entityManager && ballEntity != bbl::INVALID_ENTITY) {
+                    bbl::Physics physicsComp;
+                    physicsComp.useGravity = true;
+                    entityManager->addComponent(ballEntity, physicsComp);
+
+                    bbl::Collision collisionComp;
+                    collisionComp.colliderSize = glm::vec3(2.0f);
+                    entityManager->addComponent(ballEntity, collisionComp);
+
+                    bbl::Tracking trackingComp;
+                    trackingComp.enabled = true;
+                    entityManager->addComponent(ballEntity, trackingComp);
+
+                    if (sceneManager) {
+                        sceneManager->setEntityName(ballEntity, "Ball_" + std::to_string(ballSpawnCount));
+                        sceneManager->markSceneDirty();
+                    }
+
+                    bbl::Render* render = entityManager->getComponent<bbl::Render>(ballEntity);
+                    if (render) {
+                        render->usePhong = true;
+                    }
+
+                    qInfo() << "Ball" << ballSpawnCount << "spawned!";
+                }
+
+                ballSpawnCount++;
+                mVulkanWindow->recreateSwapChain();
+                mVulkanWindow->requestUpdate();
+                updateSceneObjectList();
+            });
+
+            ballSpawnTimer->start(300);  // 0.3 seconds = 300ms
     }
+
 
     void MainWindow::onButton2Clicked()
     {

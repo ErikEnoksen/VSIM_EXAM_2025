@@ -189,10 +189,10 @@ void CollisionSystem::resolveCollision(EntityID entityA, EntityID entityB,
     else if (!physicsA && physicsB) {
         transformB->position += separation;
     }
-    else if (physicsA && physicsB) {
-        transformA->position -= separation * 0.5f;
-        transformB->position += separation * 0.5f;
-    }
+    // else if (physicsA && physicsB) {
+    //     transformA->position -= separation * 0.5f;
+    //     transformB->position += separation * 0.5f;
+    // }
 
     /*
      * Hastighetskorrigering
@@ -244,31 +244,31 @@ void CollisionSystem::resolveCollision(EntityID entityA, EntityID entityB,
             physicsB->velocity -= tangentVel * 0.3f;
         }
     }
-    else if (physicsA && physicsB) {
-        /*
-         * Oppgave 2.4: Ball-ball kollisjon
-         * Kapittel 9.7.5: Formel 9.25 og 9.26
-         */
+    // else if (physicsA && physicsB) {
+    //     /*
+    //      * Oppgave 2.4: Ball-ball kollisjon
+    //      * Kapittel 9.7.5: Formel 9.25 og 9.26
+    //      */
 
-        float m0 = physicsA->mass;
-        float m1 = physicsB->mass;
-        float totalMass = m0 + m1;
+    //     float m0 = physicsA->mass;
+    //     float m1 = physicsB->mass;
+    //     float totalMass = m0 + m1;
 
-        float v0_d = glm::dot(physicsA->velocity, normal);
-        float v1_d = glm::dot(physicsB->velocity, normal);
+    //     float v0_d = glm::dot(physicsA->velocity, normal);
+    //     float v1_d = glm::dot(physicsB->velocity, normal);
 
-        // Kapittel 9.7.5: Formel 9.25 og 9.26
-        float v0_d_new = ((m0 - m1) / totalMass) * v0_d + (2.0f * m1 / totalMass) * v1_d;
-        float v1_d_new = ((m1 - m0) / totalMass) * v1_d + (2.0f * m0 / totalMass) * v0_d;
+    //     // Kapittel 9.7.5: Formel 9.25 og 9.26
+    //     float v0_d_new = ((m0 - m1) / totalMass) * v0_d + (2.0f * m1 / totalMass) * v1_d;
+    //     float v1_d_new = ((m1 - m0) / totalMass) * v1_d + (2.0f * m0 / totalMass) * v0_d;
 
-        glm::vec3 v0_tangent = physicsA->velocity - v0_d * normal;
-        glm::vec3 v1_tangent = physicsB->velocity - v1_d * normal;
+    //     glm::vec3 v0_tangent = physicsA->velocity - v0_d * normal;
+    //     glm::vec3 v1_tangent = physicsB->velocity - v1_d * normal;
 
-        // Kapittel 9.7.5: Formel 9.27 og 9.28
-        physicsA->velocity = v0_tangent + v0_d_new * normal;
-        physicsB->velocity = v1_tangent + v1_d_new * normal;
+    //     // Kapittel 9.7.5: Formel 9.27 og 9.28
+    //     physicsA->velocity = v0_tangent + v0_d_new * normal;
+    //     physicsB->velocity = v1_tangent + v1_d_new * normal;
 
-        physicsA->velocity *= 0.95f;
-        physicsB->velocity *= 0.95f;
-    }
+    //     physicsA->velocity *= 0.95f;
+    //     physicsB->velocity *= 0.95f;
+    // }
 }

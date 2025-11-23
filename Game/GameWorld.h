@@ -42,6 +42,7 @@ private:
     std::unique_ptr<CollisionSystem> m_collisionSystem;
     std::unique_ptr<bbl::TrackingSystem> m_trackingSystem;
     Renderer* m_renderer = nullptr;
+
     bool m_paused = true;
     bool m_terrainLoaded{false};
     bool m_commandBuffersNeedRebuild = false;

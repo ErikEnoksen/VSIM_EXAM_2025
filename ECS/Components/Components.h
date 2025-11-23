@@ -116,7 +116,7 @@ struct Tracking
 
     // Fast tidssteg Δt mellom hver sampling (i sekunder)
     // t_{k+1} = t_k + Δt
-    float sampleInterval = .2f;
+    float sampleInterval = .3f;
 
     // Akkumulerer tid siden siste sampling:
     // timeSinceLastSample = Σ Δt_frame

@@ -20,7 +20,7 @@ public:
     void clearUpdateFlag() { m_didUpdateMesh = false; }
 
 private:
-    bool samplePosition(EntityID entity, Transform* transform, Tracking* tracking, float dt);  // Changed to bool
+    bool samplePosition(EntityID entity, Transform* transform, Tracking* tracking, float dt);
     void updateTraceMesh(EntityID entity, Tracking* tracking);
 
     EntityManager* m_entityManager = nullptr;

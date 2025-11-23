@@ -59,6 +59,8 @@ private:
     void initRenderer();
     void initUI();
     void initLogger();
+    int ballSpawnCount = 0;
+    QTimer* ballSpawnTimer = nullptr;
 
     QWidget* createTopBar();
     QTabWidget* createTabWidget();
@@ -80,6 +82,8 @@ private slots:
     //=========================================================================
     void on_action_Quit_triggered();
     void on_action_Open_triggered();
+    void refreshComponentValues();
+
 
     //=========================================================================
     // UI Buttons
