@@ -390,70 +390,68 @@
 
     // }
 
-        void MainWindow::onButton1Clicked()
-        {
-            /*
-            * Oppgave 2.6: Fluid simulation - spawner baller med tids intervall
-            */
-            ballSpawnCount = 0;
+    void MainWindow::onButton1Clicked()
+    {
+        /*
+ * Oppgave 2.6: Fluid simulation - spawn balls at intervals
+ */
+        ballSpawnCount = 0;
 
-            if (ballSpawnTimer) {
+        if (ballSpawnTimer) {
+            ballSpawnTimer->stop();
+            delete ballSpawnTimer;
+        }
+
+        ballSpawnTimer = new QTimer(this);
+        connect(ballSpawnTimer, &QTimer::timeout, this, [=]() {
+            if (ballSpawnCount >= 10) {
                 ballSpawnTimer->stop();
-                delete ballSpawnTimer;
+                return;
             }
 
-            ballSpawnTimer = new QTimer(this);
-            connect(ballSpawnTimer, &QTimer::timeout, this, [=]() {
-                if (ballSpawnCount >= 20) {
-                    ballSpawnTimer->stop();
-                    return;
+            bbl::EntityID ballEntity = mVulkanWindow->spawnModel(
+                "../../Assets/Models/Ball2.obj",
+                "../../Assets/Textures/ball.jpg",
+                glm::vec3(76.0f, 42.0f, 0.0f)  // Same position!
+                );
+
+            auto* entityManager = mVulkanWindow->getEntityManager();
+            auto* sceneManager = mVulkanWindow->getSceneManager();
+
+            if (entityManager && ballEntity != bbl::INVALID_ENTITY) {
+                bbl::Physics physicsComp;
+                physicsComp.useGravity = true;
+                entityManager->addComponent(ballEntity, physicsComp);
+
+                bbl::Collision collisionComp;
+                collisionComp.colliderSize = glm::vec3(2.0f);
+                entityManager->addComponent(ballEntity, collisionComp);
+
+                bbl::Tracking trackingComp;
+                trackingComp.enabled = true;
+                entityManager->addComponent(ballEntity, trackingComp);
+
+                if (sceneManager) {
+                    sceneManager->setEntityName(ballEntity, "Ball_" + std::to_string(ballSpawnCount));
+                    sceneManager->markSceneDirty();
                 }
 
-                bbl::EntityID ballEntity = mVulkanWindow->spawnModel(
-                    "../../Assets/Models/Ball2.obj",
-                    "../../Assets/Textures/ball.jpg",
-                    glm::vec3(76.0f, 42.0f, 0.0f)
-                    );
-
-                auto* entityManager = mVulkanWindow->getEntityManager();
-                auto* sceneManager = mVulkanWindow->getSceneManager();
-
-                if (entityManager && ballEntity != bbl::INVALID_ENTITY) {
-                    bbl::Physics physicsComp;
-                    physicsComp.useGravity = true;
-                    entityManager->addComponent(ballEntity, physicsComp);
-
-                    bbl::Collision collisionComp;
-                    collisionComp.colliderSize = glm::vec3(2.0f);
-                    entityManager->addComponent(ballEntity, collisionComp);
-
-                    bbl::Tracking trackingComp;
-                    trackingComp.enabled = true;
-                    entityManager->addComponent(ballEntity, trackingComp);
-
-                    if (sceneManager) {
-                        sceneManager->setEntityName(ballEntity, "Ball_" + std::to_string(ballSpawnCount));
-                        sceneManager->markSceneDirty();
-                    }
-
-                    bbl::Render* render = entityManager->getComponent<bbl::Render>(ballEntity);
-                    if (render) {
-                        render->usePhong = true;
-                    }
-
-                    qInfo() << "Ball" << ballSpawnCount << "spawned!";
+                bbl::Render* render = entityManager->getComponent<bbl::Render>(ballEntity);
+                if (render) {
+                    render->usePhong = true;
                 }
 
-                ballSpawnCount++;
-                mVulkanWindow->recreateSwapChain();
-                mVulkanWindow->requestUpdate();
-                updateSceneObjectList();
-            });
+                qInfo() << "Ball" << ballSpawnCount << "spawned!";
+            }
 
-            ballSpawnTimer->start(300);  // 0.3 seconds = 300ms
+            ballSpawnCount++;
+            mVulkanWindow->recreateSwapChain();
+            mVulkanWindow->requestUpdate();
+            updateSceneObjectList();
+        });
+
+        ballSpawnTimer->start(500);
     }
-
-
     void MainWindow::onButton2Clicked()
     {
         mVulkanWindow->spawnTerrain();
